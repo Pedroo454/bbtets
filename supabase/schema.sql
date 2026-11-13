@@ -97,16 +97,15 @@ $$;
 
 create or replace function public.is_staff_admin()
 returns boolean language sql stable security definer set search_path=public
-as $
+as $function$
  select exists(select 1 from public.user_roles where user_id=auth.uid() and role in ('owner','admin'));
-$;
+$function$;
 
 create or replace function public.is_owner()
 returns boolean language sql stable security definer set search_path=public
-as $
+as $function$
  select exists(select 1 from public.user_roles where user_id=auth.uid() and role='owner');
-$;
-
+$function$;
 create policy "profiles read own or staff" on public.profiles for select to authenticated
 using (id=auth.uid() or public.has_staff_role());
 create policy "profiles insert own" on public.profiles for insert to authenticated
