@@ -92,19 +92,19 @@ alter table public.business_settings enable row level security;
 create or replace function public.has_staff_role()
 returns boolean language sql stable security definer set search_path=public
 as $$
- select exists(select 1 from public.user_roles where user_id=auth.uid() and role in ('owner','admin','barber'));
+ select coalesce(auth.jwt()->>'aal','aal1')='aal2' and exists(select 1 from public.user_roles where user_id=auth.uid() and role in ('owner','admin','barber'));
 $$;
 
 create or replace function public.is_staff_admin()
 returns boolean language sql stable security definer set search_path=public
 as $function$
- select exists(select 1 from public.user_roles where user_id=auth.uid() and role in ('owner','admin'));
+ select coalesce(auth.jwt()->>'aal','aal1')='aal2' and exists(select 1 from public.user_roles where user_id=auth.uid() and role in ('owner','admin'));
 $function$;
 
 create or replace function public.is_owner()
 returns boolean language sql stable security definer set search_path=public
 as $function$
- select exists(select 1 from public.user_roles where user_id=auth.uid() and role='owner');
+ select coalesce(auth.jwt()->>'aal','aal1')='aal2' and exists(select 1 from public.user_roles where user_id=auth.uid() and role='owner');
 $function$;
 create policy "profiles read own or staff" on public.profiles for select to authenticated
 using (id=auth.uid() or public.has_staff_role());
