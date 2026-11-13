@@ -808,7 +808,7 @@ async function boot(){
 }
 function closeSheetSilent(){if(S.sheet){S.sheet=null;S.delc=null;renderSheet()}}
 
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
   const el=e.target.closest('[data-a]');if(!el)return;const a=el.dataset.a,d=el.dataset,b=S.book,sh=S.sheet;
   switch(a){
    case'go':if(d.v==='agendar'&&b.done)resetBook();closeSheetSilent();go(d.v);break;
