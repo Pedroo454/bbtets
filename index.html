@@ -527,7 +527,7 @@ const canChange=b=>(startAt(b)-Date.now())>=S.cfg.minCancelH*3600e3;
 
 /* ===== telas do cliente ===== */
 function greet(){const h=new Date().getHours();const g=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';const n=S.user?S.user.name.split(' ')[0]:'';return n?`${g}, ${esc(n)}`:g}
-function topbar(){return`<div class="top"><div class="logo" aria-hidden="true">JC</div><div><small>${greet()}</small><h2>${esc(S.cfg.name)}</h2></div><div class="sp"></div>${S.user?`<button class="ib av-btn" data-a="go" data-v="meus" aria-label="Minha conta">${esc(initial(S.user.name))}</button>`:`<button class="btn sm" data-a="login" style="min-height:48px;padding:0 16px">Entrar</button>`}</div>`}
+function topbar(){return`<div class="top"><div class="logo" aria-hidden="true">JC</div><div><small>${greet()}</small><h2>${esc(S.cfg.name)}</h2></div><div class="sp"></div>${S.user?`<button class="ib av-btn" data-a="go" data-v="meus" aria-label="Minha conta" style="padding:0;overflow:hidden"><img src="${avatarUrl(S.user.avatar_seed)}" alt="" style="width:100%;height:100%;object-fit:cover"></button>`:`<button class="btn sm" data-a="login" style="min-height:48px;padding:0 16px">Entrar</button>`}</div>`}
 function svcThumb(s,cls='pic'){return s.img?`<img class="${cls}" src="${imgSrc(s.img)}" alt="${esc(s.name)}" loading="lazy">`:`<div class="${cls}" style="display:grid;place-items:center;background:var(--card2);color:var(--mut2)">${ic('razor')}</div>`}
 function svcCard(s){return`<button class="card mini" data-a="quick" data-id="${s.id}">${svcThumb(s)}<div class="b"><h4>${esc(s.name)}</h4><div class="meta">${ic('clock')}${durTxt(s.dur)}</div><div class="row-between"><span class="price">${brl(s.price)}</span><span class="tag">Agendar</span></div></div></button>`}
 function skeleton(){return`<div class="top"><div class="sk" style="width:48px;height:48px;border-radius:15px"></div><div style="flex:1"><div class="sk" style="height:12px;width:90px;margin-bottom:8px"></div><div class="sk" style="height:18px;width:200px"></div></div></div><div class="sk" style="height:440px;border-radius:30px"></div><div class="sec"><div class="sk" style="height:22px;width:180px;margin-bottom:14px"></div><div class="hs"><div class="sk" style="width:230px;height:250px"></div><div class="sk" style="width:230px;height:250px"></div></div></div>`}
@@ -613,7 +613,7 @@ function vMeus(){
     ${isUp?`<div class="acts">${can?`<button data-a="resched" data-id="${b.id}">${ic('swap')} Remarcar</button><button class="bad" data-a="cancel" data-id="${b.id}">${cc?'Confirmar cancelamento':'Cancelar'}</button>`:`<span class="note" style="margin:6px 0 0">Prazo para remarcar ou cancelar encerrado. Fale com a barbearia:</span><a href="${waLink('Olá! Preciso alterar meu horário de '+longDate(b.date)+' às '+hm(b.time)+'.')}" target="_blank" rel="noopener">${ic('wa')} WhatsApp</a>`}</div>`:''}
     ${b.status==='concluido'?(rv?`<div style="margin-top:10px;display:flex;align-items:center;gap:10px">${stars(rv.stars)}<span class="note" style="margin:0">Sua avaliação</span></div>`:`<div class="acts"><button data-a="review" data-id="${b.id}" style="background:var(--y);color:var(--y-ink)">${ic('star')} Avaliar atendimento</button></div>`):''}</div>`};
   return`${topbar()}<div class="ph1"><h1>Meus agendamentos</h1></div>
-  <div class="card acct"><div class="av2">${esc(initial(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}<br><span class="num">${esc(u.phone)}</span></span></div><button class="btn ghost sm" data-a="logout-c">Sair</button></div>
+  <div class="card acct"><div class="av2" style="padding:0;overflow:hidden"><img src="${avatarUrl(u.avatar_seed)}" alt="Avatar" style="width:100%;height:100%;object-fit:cover"></div><div><b>${esc(u.name)}</b><span>${esc(u.email)}<br><span class="num">${esc(u.phone)}</span></span></div><button class="btn ghost sm" data-a="logout-c">Sair</button></div>
   ${pendingReviews().length?`<button class="card banner" data-a="review" data-id="${pendingReviews()[0].id}">${ic('star')}<div><b>Avalie seu último atendimento</b><span>${esc(barById(pendingReviews()[0].bid).name)} · ${longDate(pendingReviews()[0].date)}</span></div></button>`:''}
   <div class="sec-h"><h3>Próximos</h3></div><div class="stack">${up.map(b=>card(b,true)).join('')||'<div class="card empty-st"><b>Nenhum horário marcado</b>Que tal agendar o próximo corte?<br><br><button class="btn sm" data-a="start">Agendar</button></div>'}</div>${hist.length?`<div class="sec-h" style="margin-top:28px"><h3>Histórico</h3></div><div class="stack">${hist.map(b=>card(b,false)).join('')}</div>`:''}`}
 
@@ -626,7 +626,7 @@ function metrics(n){
     if(a.status!=='cancelado')a.names.split(' + ').forEach(nm=>per.svc[nm]=(per.svc[nm]||0)+1)});per.rev+=rev;per.days.push([d,rev])});
   return per}
 function vAdmin(){
-  if(!S.adminAuth)return`<div class="card login view"><div class="logo">JC</div><h2>Área do proprietário</h2><p>Acesso restrito. Só o e-mail Google autorizado do proprietário entra. Na versão final essa checagem roda no servidor.</p><button class="gbtn" data-a="adminlogin">${GLOGO} Entrar com Google</button><p class="note" style="margin-top:14px">Demonstração: o botão entra direto.</p></div>`;
+  if(!S.adminAuth)return`<div class="card login view"><div class="logo">JC</div><h2>Área do proprietário</h2><p>Entre com a conta Google autorizada no Supabase.</p><button class="gbtn" data-a="adminlogin">${GLOGO} Entrar com Google</button><p class="note" style="margin-top:14px">Acesso controlado por permissões e RLS.</p></div>`;
   let body={dash:aDash,agenda:aAgenda,serv:aServ,barb:aBarb,cli:aCli,fin:aFin,cfg:aCfg}[S.tab]();
   return`<div class="top"><div class="logo">JC</div><div><small>Painel do proprietário</small><h2>${esc(S.cfg.name)}</h2></div><div class="sp"></div><button class="ib" data-a="logout" aria-label="Sair do painel">${ic('out')}</button></div><div class="adm"><nav class="atabs" aria-label="Seções do painel">${TABS.map(t=>`<button class="at ${S.tab===t[0]?'on':''}" data-a="tab" data-t="${t[0]}">${ic(t[2])}${t[1]}</button>`).join('')}</nav><div class="view" key="${S.tab}" style="min-width:0;display:grid;gap:14px">${body}</div></div>`}
 function aDash(){
@@ -751,8 +751,8 @@ const GATED=['agendar','meus'];
 function go(v){if(location.hash!=='#'+v){location.hash=v;return}setView(v)}
 function setView(v){
   if(!['home','servicos','equipe','agendar','meus','admin','entrar'].includes(v))v='home';
-  if(GATED.includes(v)&&!S.user){S.next=v;S.auth={step:'google',gform:false,name:'',email:'',phone:'',code:'',err:''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
-  if(v==='entrar'&&S.user){v='home';if(location.hash!=='#home'){location.hash='home';return}}
+  if(GATED.includes(v)&&!S.user){S.next=v;S.auth={step:authSession?'phone':'google',name:authSession?.user?.user_metadata?.full_name||'',email:authSession?.user?.email||'',phone:'',code:'',err:'',gender:'',birth_date:''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
+  if(v==='entrar'&&S.user&&S.auth.step!=='code'&&S.auth.step!=='profile'){v='home';if(location.hash!=='#home'){location.hash='home';return}}
   if(v==='agendar'&&!S.cal){const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
   S.view=v;S.cc=null;render();window.scrollTo({top:0})}
 function resetBook(keep){S.book={step:1,svcs:keep||[],barber:'any',date:null,time:null,bid:null,resched:null,done:null};const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
@@ -807,7 +807,7 @@ document.addEventListener('click',e=>{
    case'back':if(b.done){go('home');break}if(b.resched&&b.step<=3){go('meus');break}if(b.step>1){b.step--;render();window.scrollTo({top:0})}else go('home');break;
    /* conta */
    case'gopen':startGoogleLogin();break;
-   case'authback':{const st=S.auth.step;if(st==='code'){S.auth.step='phone';S.auth.code='';S.auth.err=''}else if(st==='phone'){S.auth.step='google';S.auth.err=''}else if(S.auth.gform){S.auth.gform=false}else{go('home');break}render();break}
+   case'authback':{const st=S.auth.step;if(st==='code'){S.auth.step='phone';S.auth.code='';S.auth.err=''}else if(st==='phone'){S.auth.step='google';S.auth.err=''}else{go('home');break}render();break}
    case'verify':verifyPhoneChallenge();break;
    case'resend':sendPhoneChallenge();break;
    case'editphone':S.auth.step='phone';S.auth.code='';S.auth.err='';render();break;
@@ -869,7 +869,7 @@ document.addEventListener('input',e=>{
   if(i==='aname')S.auth.name=el.value;
   else if(i==='amail')S.auth.email=el.value;
   else if(i==='aphone'){el.value=phoneFmt(el.value);S.auth.phone=el.value}
-  else if(i==='acode'){el.value=el.value.replace(/\D/g,'').slice(0,6);S.auth.code=el.value;S.auth.err='';const bt=document.querySelector('[data-a=verify]');if(bt)bt.disabled=el.value.length!==6;if(el.value.length===6&&el.value===DEMO_CODE)setTimeout(finishLogin,250)}
+  else if(i==='acode'){el.value=el.value.replace(/\D/g,'').slice(0,6);S.auth.code=el.value;S.auth.err='';const bt=document.querySelector('[data-a=verify]');if(bt)bt.disabled=el.value.length!==6;}
   else if(i==='cq'){S.cq=el.value;render()}
   else if(i==='cfg'){const k=el.dataset.k;S.cfg[k]=k==='minCancelH'?(parseInt(el.value,10)||0):el.value}
   else if(i==='sh'){S.sheet[el.dataset.k]=el.value;if(S.sheet.t==='appt'){const bt=document.querySelector('[data-a=sh-save]');if(bt)bt.disabled=!(S.sheet.name.trim().length>=2&&digits(S.sheet.phone).length>=10&&S.sheet.svcs.length&&S.sheet.time!=null)}}
@@ -882,10 +882,10 @@ document.addEventListener('change',e=>{
   if(i==='photo'&&el.files&&el.files[0])readPhoto(el.files[0],u=>{S.sheet.img=u;renderSheet()});
 });
 document.addEventListener('submit',e=>{
-  e.preventDefault();const id=e.target.id;
-  if(id==='gf'){const a=S.auth;if(a.name.trim().length<2||!/.+@.+\..+/.test(a.email)){toast('Preencha nome e e-mail.');return}a.step='phone';a.err='';render()}
-  if(id==='pf'){const a=S.auth;if(digits(a.phone).length<10){a.err='Digite o telefone com DDD.';render();return}a.step='code';a.code='';a.err='';render()}
-  if(id==='ex'){const dd=$('#ex-d').value.trim(),v=parseMoney($('#ex-v').value);if(dd&&!isNaN(v)&&v>0){S.exp.push({d:dd,v});persist();render()}else toast('Preencha descrição e valor, por exemplo 120,50.')}
+ e.preventDefault();const id=e.target.id;
+ if(id==='pf'){const x=S.auth;if(digits(x.phone).length<10){x.err='Digite o WhatsApp com DDD.';render();return}sendPhoneChallenge()}
+ if(id==='profile-form')saveProfile(e);
+ if(id==='ex'){const dd=$('#ex-d').value.trim(),v=parseMoney($('#ex-v').value);if(dd&&!isNaN(v)&&v>0){S.exp.push({d:dd,v});persist();render()}else toast('Preencha descrição e valor, por exemplo 120,50.')}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.sheet)closeSheet()});
 /* esconde as barras fixas enquanto o teclado está aberto */
