@@ -836,7 +836,8 @@ async function handleAuthSession(session){
  S.auth.name=p.data?.full_name||session.user.user_metadata?.full_name||session.user.email?.split('@')[0]||'Cliente';
  S.auth.email=session.user.email||'';
  if(p.data){S.profile=p.data;S.auth.phone=p.data.phone||'';S.auth.gender=p.data.gender||'';S.auth.birth_date=p.data.birth_date||'';}
- if(p.data?.phone&&p.data?.gender&&p.data?.birth_date){
+ const existingPhone=normalizeBrazilWhatsApp(p.data?.phone||'');
+ if(p.data?.phone&&existingPhone.ok&&p.data?.gender&&p.data?.birth_date){
   S.user={name:p.data.full_name,email:session.user.email,phone:p.data.phone,gender:p.data.gender,birth_date:p.data.birth_date,avatar_seed:p.data.avatar_seed};
  }else{S.auth.step='phone';S.auth.err='';S.user=null;}
  await loadCloudData();
