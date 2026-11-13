@@ -1,5 +1,6 @@
 -- Barbearia Julio Caetano: schema inicial de produção
 create extension if not exists pgcrypto;
+create extension if not exists btree_gist;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -53,12 +54,14 @@ create table if not exists public.appointments (
   appointment_date date not null,
   start_minute integer not null check (start_minute between 0 and 1439),
   duration_minutes integer not null check (duration_minutes > 0),
+  end_minute integer generated always as (start_minute + duration_minutes) stored,
   total_cents integer not null check (total_cents >= 0),
   client_name text not null,
   phone text not null,
   status text not null default 'pendente' check (status in ('pendente','confirmado','concluido','cancelado','faltou')),
   source text not null default 'client',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint appointments_no_overlap exclude using gist (barber_id with =, appointment_date with =, int4range(start_minute,end_minute,'[)') with &&) where (status <> 'cancelado')
 );
 
 create table if not exists public.reviews (
@@ -130,3 +133,11 @@ insert into public.business_settings(id,settings) values ('main','{"name":"Barbe
 -- Após criar sua conta Google no site, promova-a como proprietária:
 -- insert into public.user_roles(user_id, role)
 -- select id, 'owner' from auth.users where email = 'SEU_EMAIL_GOOGLE';
+
+
+-- Availability-only view: clients can see occupied time ranges without names or phone numbers.
+create or replace view public.booking_busy_slots as
+select barber_id, appointment_date, start_minute, end_minute, status
+from public.appointments
+where status <> 'cancelado';
+grant select on public.booking_busy_slots to anon, authenticated;
