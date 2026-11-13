@@ -97,9 +97,15 @@ $$;
 
 create or replace function public.is_staff_admin()
 returns boolean language sql stable security definer set search_path=public
-as $$
+as $
  select exists(select 1 from public.user_roles where user_id=auth.uid() and role in ('owner','admin'));
-$$;
+$;
+
+create or replace function public.is_owner()
+returns boolean language sql stable security definer set search_path=public
+as $
+ select exists(select 1 from public.user_roles where user_id=auth.uid() and role='owner');
+$;
 
 create policy "profiles read own or staff" on public.profiles for select to authenticated
 using (id=auth.uid() or public.has_staff_role());
@@ -114,7 +120,7 @@ create policy "barbers public read active" on public.barbers for select to anon,
 create policy "barbers staff write" on public.barbers for all to authenticated using (public.is_staff_admin()) with check (public.is_staff_admin());
 
 create policy "roles self read" on public.user_roles for select to authenticated using (user_id=auth.uid() or public.is_staff_admin());
-create policy "roles owner write" on public.user_roles for all to authenticated using (exists(select 1 from public.user_roles r where r.user_id=auth.uid() and r.role='owner')) with check (exists(select 1 from public.user_roles r where r.user_id=auth.uid() and r.role='owner'));
+create policy "roles owner write" on public.user_roles for all to authenticated using (public.is_owner()) with check (public.is_owner());
 
 create policy "appointments client read own" on public.appointments for select to authenticated using (user_id=auth.uid() or public.has_staff_role());
 create policy "appointments client create own" on public.appointments for insert to authenticated with check (user_id=auth.uid() and status='pendente');
