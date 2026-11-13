@@ -510,7 +510,7 @@ function dayAppts(ds){
   S.bookings.filter(x=>x.date===ds).forEach(x=>all.push({key:x.id,bid:x.bid,ds,start:x.time,blocks:Math.ceil(x.dur/30),dur:x.dur,names:x.names,svcIds:x.svcIds||[],price:x.total,client:x.name,phone:x.phone,status:x.status,paid:false,user:true,by:x.by}));
   return all.sort((a,b)=>a.start-b.start||a.bid.localeCompare(b.bid));
 }
-const blocksBusy=(bid,ds)=>{const s=new Set();S.busySlots.filter(a=>a.barber_id===bid&&a.appointment_date===ds&&a.status!=='cancelado').forEach(a=>{for(let t=a.start_minute;t<a.end_minute;t+=30)s.add(Math.floor((t-OPEN.start)/30))});return s};
+const blocksBusy=(bid,ds)=>{const s=new Set();const rows=[...S.busySlots.filter(a=>a.barber_id===bid&&a.appointment_date===ds&&a.status!=='cancelado'),...S.bookings.filter(a=>a.bid===bid&&a.date===ds&&a.status!=='cancelado').map(a=>({start_minute:a.time,end_minute:a.time+a.dur}))];rows.forEach(a=>{for(let t=a.start_minute;t<a.end_minute;t+=30)s.add(Math.floor((t-OPEN.start)/30))});return s};
 const eligible=(svcs,pref)=>BB.filter(b=>b.on&&svcs.every(id=>b.svc.includes(id))&&(pref==='any'||b.id===pref));
 function slotsFor(ds,svcs,pref,dur,admin){
   const d=pdate(ds), out=[]; if(!svcs.length||!OPEN.days.includes(d.getDay())||ds<today())return out;
@@ -750,7 +750,7 @@ const GATED=['agendar','meus'];
 function go(v){if(location.hash!=='#'+v){location.hash=v;return}setView(v)}
 function setView(v){
   if(!['home','servicos','equipe','agendar','meus','admin','entrar'].includes(v))v='home';
-  if(GATED.includes(v)&&!S.user){S.next=v;S.auth={step:authSession?'phone':'google',name:authSession?.user?.user_metadata?.full_name||'',email:authSession?.user?.email||'',phone:'',code:'',err:'',gender:'',birth_date:''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
+  if(GATED.includes(v)&&!S.user){S.next=v;const pendingStep=authSession&&(S.auth.step==='code'||S.auth.step==='profile')?S.auth.step:(authSession?'phone':'google');S.auth={step:pendingStep,name:authSession?.user?.user_metadata?.full_name||S.auth.name||'',email:authSession?.user?.email||S.auth.email||'',phone:S.auth.phone||'',code:S.auth.code||'',err:S.auth.err||'',gender:'',birth_date:''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
   if(v==='entrar'&&S.user&&S.auth.step!=='code'&&S.auth.step!=='profile'){v='home';if(location.hash!=='#home'){location.hash='home';return}}
   if(v==='agendar'&&!S.cal){const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
   S.view=v;S.cc=null;render();window.scrollTo({top:0})}
