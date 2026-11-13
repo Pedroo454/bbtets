@@ -358,14 +358,24 @@ button.tr-row:hover{border-color:rgba(255,212,0,.45)}
 </style>
 
 <div class="wrap">
-  <div class="demo"><span><b>DEMONSTRAÇÃO</b> · dados fictícios · ETAPA 1</span><button data-a="go" data-v="admin" id="demoAdmin">Ver painel admin (somente demo)</button></div>
+  <div class="demo"><span><b>JULIO CAETANO</b> · AGENDAMENTO ONLINE</span><button data-a="go" data-v="admin" id="demoAdmin">Área do proprietário</button></div>
   <main id="app"></main>
 </div>
 <div id="nav"></div>
 <div id="sheet"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script>
+<script src="supabase-config.js"></script>
+<script type="module">import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createAvatar } from 'https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm';
+import { notionists } from 'https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm';
+const SB_URL=window.JC_SUPABASE_URL||''; const SB_KEY=window.JC_SUPABASE_ANON_KEY||'';
+const sb=/^https:\/\/.+\.supabase\.co$/.test(SB_URL)&&SB_KEY.length>20?createClient(SB_URL,SB_KEY):null;
+let authSession=null, factorId=null, challengeId=null, ownerAccess=false;
+const avatarUrl=seed=>createAvatar(notionists,{seed:seed||'jc-user',radius:50,backgroundColor:['ffd400','f4d35e','e8e8e8']}).toDataUri();
+const makeAvatarSeed=()=>crypto.randomUUID?crypto.randomUUID():'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+const toE164=v=>{const d=String(v||'').replace(/\D/g,'');return d.startsWith('55')?'+'+d:'+55'+d;};
+
 /* ===== ícones ===== */
 const IC={
 home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
@@ -403,39 +413,39 @@ const GLOGO='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d=
 
 /* ===== dados demonstrativos (na ETAPA 2 vêm do Supabase). Valores em CENTAVOS (inteiros) para não haver erro de arredondamento. ===== */
 const CATS=['Cortes','Barba','Combos','Acabamentos','Tratamentos'];
-const DEF_SV=[
- {id:'corte-degrade',name:'Corte degradê',cat:'Cortes',price:4500,dur:40,img:'corte',pop:1,on:1,desc:'Degradê na máquina e tesoura, finalização com pomada.'},
- {id:'corte-social',name:'Corte social',cat:'Cortes',price:3500,dur:30,img:'corte',on:1,desc:'Clássico, laterais baixas e acabamento na navalha.'},
- {id:'barba',name:'Barba na navalha',cat:'Barba',price:3500,dur:30,img:'barba',pop:1,on:1,desc:'Toalha quente, navalha e hidratação ao final.'},
- {id:'combo',name:'Corte + Barba',cat:'Combos',price:7000,dur:70,img:'hero',pop:1,on:1,desc:'Corte completo e barba na navalha no mesmo horário.'},
- {id:'sobrancelha',name:'Sobrancelha',cat:'Acabamentos',price:1500,dur:10,img:null,on:1,desc:'Alinhamento e limpeza na navalha.'},
- {id:'pezinho',name:'Pezinho e contorno',cat:'Acabamentos',price:1500,dur:10,img:null,on:1,desc:'Contorno limpo do corte, nuca e laterais.'},
- {id:'limpeza',name:'Limpeza facial',cat:'Tratamentos',price:5000,dur:30,img:'trat',on:1,desc:'Esfoliação, máscara e toalha quente.'},
- {id:'hidrata',name:'Hidratação de barba',cat:'Tratamentos',price:3000,dur:20,img:'trat',on:1,desc:'Óleo e bálsamo para barba macia e alinhada.'}
-];
-const ALLS=DEF_SV.map(s=>s.id);
-const DEF_BB=[
- {id:'rafael',name:'Rafael',role:'Degradê e tesoura',img:'b1',off:[1],on:1,svc:ALLS.slice(),bio:'Especialista em degradê e acabamento com tesoura. Atende com hora marcada e sem pressa.'},
- {id:'diego',name:'Diego',role:'Cortes modernos e texturizados',img:'b2',off:[3],on:1,svc:['corte-degrade','corte-social','sobrancelha','pezinho'],bio:'Cortes atuais, cabelo cacheado e texturizado. Mantém a tendência sem perder a identidade do cliente.'},
- {id:'marcos',name:'Marcos',role:'Barba na navalha',img:'b3',off:[2],on:1,svc:['barba','corte-social','combo','limpeza','hidrata','sobrancelha','pezinho'],bio:'Barba na navalha com toalha quente, do jeito clássico. Também faz corte social e tratamentos.'}
-];
+const DEF_SV=[];
+const ALLS=[];
+const DEF_BB=[];
 const DOW=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const OPEN={start:540,end:1140,days:[1,2,3,4,5,6]};
 const NB=(OPEN.end-OPEN.start)/30;
 const NAMES=['Lucas M.','Pedro H.','Gabriel S.','Thiago R.','Mateus A.','Bruno C.','André L.','Felipe O.','Caio T.','Renan P.','Vitor G.','Danilo F.','Igor N.','Leandro B.'];
 const CFG0={name:'Barbearia Julio Caetano',address:'',whatsapp:'',instagram:'',desc:'Corte, barba e atendimento com hora marcada em Poá, SP.',minCancelH:2,hours:'Seg a Sáb · 09h às 19h',confirmMsg:'Olá! Quero confirmar meu horário na Barbearia Julio Caetano.'};
-const DEMO_CODE='123456';
+// OTPs são gerados e validados pelo Supabase Auth.
 
-const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const KEY='jc-v2', sv0=store.get(KEY,null)||{};
+const sv0={};
 let SV=sv0.SV||JSON.parse(JSON.stringify(DEF_SV)), BB=sv0.BB||JSON.parse(JSON.stringify(DEF_BB));
 const S={view:'home',loading:true,cat:'Todos',
   book:{step:1,svcs:[],barber:'any',date:null,time:null,bid:null,resched:null,done:null},
-  cal:null,bookings:sv0.bookings||[],reviews:sv0.reviews||[],user:sv0.user||null,
-  auth:{step:'google',gform:false,name:'',email:'',phone:'',code:'',err:''},next:'home',
-  ov:sv0.ov||{},sent:sv0.sent||{},cfg:Object.assign({},CFG0,sv0.cfg||{}),adminAuth:false,tab:'dash',period:7,adate:null,
-  exp:sv0.exp||[{d:'Aluguel (exemplo)',v:180000},{d:'Produtos (exemplo)',v:42000}],cq:'',sheet:null,cc:null,delc:null};
-function persist(){store.set(KEY,{SV,BB,bookings:S.bookings,reviews:S.reviews,user:S.user,ov:S.ov,sent:S.sent,cfg:S.cfg,exp:S.exp})}
+  cal:null,bookings:[],busySlots:[],reviews:[],user:null,profile:null,
+  auth:{step:'google',name:'',email:'',phone:'',code:'',err:'',gender:'',birth_date:''},next:'home',
+  ov:{},sent:{},cfg:Object.assign({},CFG0),adminAuth:false,tab:'dash',period:7,adate:null,
+  exp:[],cq:'',sheet:null,cc:null,delc:null};
+async function persist(){
+ if(!sb||!authSession)return;
+ const uid=authSession.user.id;
+ const rows=S.bookings.filter(x=>S.adminAuth||x.user_id===uid).map(x=>({id:x.id,user_id:x.user_id||null,barber_id:x.bid,service_ids:x.svcIds||[],service_names:x.names,appointment_date:x.date,start_minute:x.time,duration_minutes:x.dur,total_cents:x.total,client_name:x.name,phone:x.phone,status:x.status,source:x.by||'client'}));
+ for(const row of rows){const {error}=await sb.from('appointments').upsert(row);if(error)console.error('appointment save',error)}
+ const reviews=S.reviews.filter(x=>!x.user_id||x.user_id===uid).map(x=>({id:x.id,booking_id:x.bk,user_id:uid,barber_id:x.bid,rating:x.stars,comment:x.text||'',client_name:x.name||S.user?.name||'Cliente'}));
+ for(const row of reviews){const {error}=await sb.from('reviews').upsert(row);if(error)console.error('review save',error)}
+ if(S.adminAuth){
+  const sr=SV.map((x,i)=>({id:x.id,name:x.name,category:x.cat,price_cents:x.price,duration_minutes:x.dur,description:x.desc||'',image_key:x.img,is_featured:!!x.pop,is_active:!!x.on,sort_order:i}));
+  const br=BB.map((x,i)=>({id:x.id,name:x.name,role:x.role||'',bio:x.bio||'',image_key:x.img,days_off:x.off||[],service_ids:x.svc||[],is_active:!!x.on,sort_order:i}));
+  if(sr.length){const {error}=await sb.from('services').upsert(sr);if(error)console.error('services save',error)}
+  if(br.length){const {error}=await sb.from('barbers').upsert(br);if(error)console.error('barbers save',error)}
+  const {error}=await sb.from('business_settings').upsert({id:'main',settings:S.cfg});if(error)console.error('settings save',error)
+ }
+}
 
 /* ===== utilitários ===== */
 const $=s=>document.querySelector(s);
@@ -479,7 +489,7 @@ function seeded(bid,ds){
   const k=bid+ds; if(cache.has(k))return cache.get(k);
   const d=pdate(ds), b=BB.find(x=>x.id===bid), out=[];
   const pool=b?b.svc.map(svcById).filter(s=>s&&s.on):[];
-  if(b&&b.on&&pool.length&&OPEN.days.includes(d.getDay())&&!b.off.includes(d.getDay())){
+  if(false && b&&b.on&&pool.length&&OPEN.days.includes(d.getDay())&&!b.off.includes(d.getDay())){
     const r=rng(hash(k)), n=Date.now(); let i=Math.floor(r()*2);
     while(i<NB){
       const s=pool[Math.floor(r()*pool.length)], blocks=Math.ceil(s.dur/30);
@@ -500,7 +510,7 @@ function dayAppts(ds){
   S.bookings.filter(x=>x.date===ds).forEach(x=>all.push({key:x.id,bid:x.bid,ds,start:x.time,blocks:Math.ceil(x.dur/30),dur:x.dur,names:x.names,svcIds:x.svcIds||[],price:x.total,client:x.name,phone:x.phone,status:x.status,paid:false,user:true,by:x.by}));
   return all.sort((a,b)=>a.start-b.start||a.bid.localeCompare(b.bid));
 }
-const blocksBusy=(bid,ds)=>{const s=new Set();dayAppts(ds).filter(a=>a.bid===bid&&a.status!=='cancelado').forEach(a=>{const i=(a.start-OPEN.start)/30;for(let j=0;j<a.blocks;j++)s.add(i+j)});return s};
+const blocksBusy=(bid,ds)=>{const s=new Set();const rows=[...S.busySlots.filter(a=>a.barber_id===bid&&a.appointment_date===ds&&a.status!=='cancelado'),...S.bookings.filter(a=>a.bid===bid&&a.date===ds&&a.status!=='cancelado').map(a=>({start_minute:a.time,end_minute:a.time+a.dur}))];rows.forEach(a=>{for(let t=a.start_minute;t<a.end_minute;t+=30)s.add(Math.floor((t-OPEN.start)/30))});return s};
 const eligible=(svcs,pref)=>BB.filter(b=>b.on&&svcs.every(id=>b.svc.includes(id))&&(pref==='any'||b.id===pref));
 function slotsFor(ds,svcs,pref,dur,admin){
   const d=pdate(ds), out=[]; if(!svcs.length||!OPEN.days.includes(d.getDay())||ds<today())return out;
@@ -517,7 +527,7 @@ const canChange=b=>(startAt(b)-Date.now())>=S.cfg.minCancelH*3600e3;
 
 /* ===== telas do cliente ===== */
 function greet(){const h=new Date().getHours();const g=h<12?'Bom dia':h<18?'Boa tarde':'Boa noite';const n=S.user?S.user.name.split(' ')[0]:'';return n?`${g}, ${esc(n)}`:g}
-function topbar(){return`<div class="top"><div class="logo" aria-hidden="true">JC</div><div><small>${greet()}</small><h2>${esc(S.cfg.name)}</h2></div><div class="sp"></div>${S.user?`<button class="ib av-btn" data-a="go" data-v="meus" aria-label="Minha conta">${esc(initial(S.user.name))}</button>`:`<button class="btn sm" data-a="login" style="min-height:48px;padding:0 16px">Entrar</button>`}</div>`}
+function topbar(){return`<div class="top"><div class="logo" aria-hidden="true">JC</div><div><small>${greet()}</small><h2>${esc(S.cfg.name)}</h2></div><div class="sp"></div>${S.user?`<button class="ib av-btn" data-a="go" data-v="meus" aria-label="Minha conta" style="padding:0;overflow:hidden"><img src="${avatarUrl(S.user.avatar_seed)}" alt="" style="width:100%;height:100%;object-fit:cover"></button>`:`<button class="btn sm" data-a="login" style="min-height:48px;padding:0 16px">Entrar</button>`}</div>`}
 function svcThumb(s,cls='pic'){return s.img?`<img class="${cls}" src="${imgSrc(s.img)}" alt="${esc(s.name)}" loading="lazy">`:`<div class="${cls}" style="display:grid;place-items:center;background:var(--card2);color:var(--mut2)">${ic('razor')}</div>`}
 function svcCard(s){return`<button class="card mini" data-a="quick" data-id="${s.id}">${svcThumb(s)}<div class="b"><h4>${esc(s.name)}</h4><div class="meta">${ic('clock')}${durTxt(s.dur)}</div><div class="row-between"><span class="price">${brl(s.price)}</span><span class="tag">Agendar</span></div></div></button>`}
 function skeleton(){return`<div class="top"><div class="sk" style="width:48px;height:48px;border-radius:15px"></div><div style="flex:1"><div class="sk" style="height:12px;width:90px;margin-bottom:8px"></div><div class="sk" style="height:18px;width:200px"></div></div></div><div class="sk" style="height:440px;border-radius:30px"></div><div class="sec"><div class="sk" style="height:22px;width:180px;margin-bottom:14px"></div><div class="hs"><div class="sk" style="width:230px;height:250px"></div><div class="sk" style="width:230px;height:250px"></div></div></div>`}
@@ -534,11 +544,10 @@ function vHome(){
     <button class="btn" data-a="start">AGENDAR HORÁRIO ${ic('r')}</button></div></section>
   <section class="sec rv" style="--d:1"><div class="sec-h"><h3>Mais procurados</h3><button class="link" data-a="go" data-v="servicos">Ver todos</button></div><div class="hs">${pop.map(svcCard).join('')||'<p class="ph">Nenhum serviço em destaque.</p>'}</div></section>
   <section class="sec rv" style="--d:2"><div class="sec-h"><h3>Nossa equipe</h3><button class="link" data-a="go" data-v="equipe">Ver todos</button></div><div class="team">${BB.filter(b=>b.on).map(b=>`<button class="tm" data-a="go" data-v="equipe">${b.img?`<img src="${imgSrc(b.img)}" alt="${esc(b.name)}" loading="lazy" style="object-position:50% 20%">`:`<div class="ph0">${ic('user')}</div>`}<div class="t"><b>${esc(b.name)}</b><span>${esc(b.role)}</span>${rateTxt(b.id)}</div></button>`).join('')}</div></section>
-  <section class="sec rv" style="--d:3"><div class="sec-h"><h3>Promoções</h3><span class="tag ex">Exemplo</span></div><div class="card promo"><img class="pic" src="${imgSrc('barba')}" alt="Barba na navalha" loading="lazy" style="height:200px"><div class="b"><span class="tag">Promoção da semana</span><h4>Corte + Barba</h4><div class="big">${brl(6500)}<s>${brl(7000)}</s></div><p style="color:var(--mut);font-size:13.5px">Valor de demonstração. O proprietário cadastra e ativa promoções no painel.</p><button class="btn sm" data-a="quick" data-id="combo">Quero esse combo</button></div></div></section>
-  <section class="sec rv" style="--d:4"><div class="sec-h"><h3>Avaliações</h3>${real.length?'':'<span class="tag ex">Exemplo</span>'}</div><div class="hs">
-    ${real.length?real.map(r=>`<div class="card rev">${stars(r.stars)}<p>${r.text?esc(r.text):'Atendimento avaliado sem comentário.'}</p><small>${esc(r.name)} · atendido por ${esc(barById(r.bid).name)}</small></div>`).join(''):[1,2].map(()=>`<div class="card rev">${stars(5)}<p>Espaço reservado para o depoimento de um cliente. As avaliações reais aparecem aqui depois dos atendimentos.</p><small>Exemplo · não é avaliação real</small></div>`).join('')}</div></section>
+  <section class="sec rv" style="--d:4"><div class="sec-h"><h3>Avaliações</h3>${''}</div><div class="hs">
+    ${real.length?real.map(r=>`<div class="card rev">${stars(r.stars)}<p>${r.text?esc(r.text):'Atendimento avaliado sem comentário.'}</p><small>${esc(r.name)} · atendido por ${esc(barById(r.bid).name)}</small></div>`).join(''):'<p class="ph">As avaliações dos clientes aparecerão aqui.</p>'}</div></section>
   <section class="sec rv" style="--d:5"><div class="sec-h"><h3>Onde estamos</h3></div>${vLocal()}</section>
-  <div class="foot">${esc(cf.name)} · Poá, SP<br>Preços, fotos e nomes desta demonstração são exemplos.</div>`}
+  <div class="foot">${esc(cf.name)} · Poá, SP</div>`}
 function vLocal(){const cf=S.cfg;
   return`<div class="local"><div class="card"><div class="map" aria-hidden="true"><svg class="bg" viewBox="0 0 400 190" preserveAspectRatio="xMidYMid slice"><g stroke="#242424" stroke-width="10" fill="none"><path d="M-10 60L410 90M60 -10L120 200M250 -10L210 200M-10 150L410 120"/></g><g stroke="#1b1b1b" stroke-width="4" fill="none"><path d="M-10 20L410 40M150 -10L170 200M320 -10L340 200M-10 100L410 60M-10 180L410 170"/></g></svg><div class="pin">${ic('pin')}</div></div><div style="padding:14px"><a class="btn block sm" href="${mapsLink()}" target="_blank" rel="noopener">${ic('ext')} Abrir rota no Google Maps</a></div></div>
   <div class="card" style="padding:6px 18px">
@@ -549,21 +558,22 @@ function vLocal(){const cf=S.cfg;
   <div style="display:flex;gap:10px;padding:8px 0 14px;flex-wrap:wrap"><a class="btn ghost sm" href="${waLink('Olá! Gostaria de falar com a Barbearia Julio Caetano.')}" target="_blank" rel="noopener">${ic('wa')} Chamar no WhatsApp</a></div></div></div>`}
 function vServicos(){
   const list=SV.filter(s=>s.on&&(S.cat==='Todos'||s.cat===S.cat));
-  return`${topbar()}<div class="ph1"><h1>Serviços e preços</h1><p>Valores e durações de demonstração, editáveis pelo proprietário.</p></div>
+  return`${topbar()}<div class="ph1"><h1>Serviços e preços</h1><p>Consulte os serviços e valores disponíveis.</p></div>
   <div class="filters">${['Todos',...CATS].map(c=>`<button class="fl ${S.cat===c?'on':''}" data-a="cat" data-c="${c}">${c}</button>`).join('')}</div>
   <div class="list">${list.map((s,i)=>`<div class="card svc rv" style="--d:${i}"><div class="th">${s.img?`<img src="${imgSrc(s.img)}" alt="" loading="lazy">`:ic('razor')}</div><div class="bd"><span class="tag" style="align-self:flex-start">${s.cat}</span><h4>${esc(s.name)}</h4><p>${esc(s.desc)}</p><div class="row-between"><div><span class="price">${brl(s.price)}</span> <span class="meta" style="display:inline-flex;margin-left:6px">${ic('clock')}${durTxt(s.dur)}</span></div><button class="btn sm" data-a="quick" data-id="${s.id}">Agendar</button></div></div></div>`).join('')||'<div class="card empty-st"><b>Nenhum serviço nesta categoria</b>Escolha outra categoria.</div>'}</div>`}
 const offTxt=b=>b.off.length?`Folga: ${b.off.map(d=>DOW[d]).join(', ')}`:'Atende todos os dias de funcionamento';
-function vEquipe(){return`${topbar()}<div class="ph1"><h1>Equipe</h1><p>Escolha com quem quer cortar. Nomes e fotos de exemplo.</p></div>
+function vEquipe(){return`${topbar()}<div class="ph1"><h1>Equipe</h1><p>Conheça nossos profissionais.</p></div>
   <div class="teams-l list" style="gap:16px">${BB.filter(b=>b.on).map((b,i)=>`<article class="card bcard rv" style="--d:${i}"><div class="ph-img">${b.img?`<img src="${imgSrc(b.img)}" alt="${esc(b.name)}" loading="lazy">`:ic('user')}</div><div class="bd"><h3>${esc(b.name)}</h3><div class="role">${esc(b.role)}</div>${rateTxt(b.id)}<p>${esc(b.bio)}</p><div class="pills">${b.svc.map(svcById).filter(s=>s&&s.on).slice(0,4).map(s=>`<span class="pill">${esc(s.name)}</span>`).join('')}</div><div class="avail"><span class="dot"></span>${offTxt(b)}</div><button class="btn sm" data-a="withbarber" data-id="${b.id}" style="margin-top:4px">Agendar com ${esc(b.name)}</button></div></article>`).join('')||'<div class="card empty-st"><b>Nenhum profissional ativo</b></div>'}</div>`}
 
 /* ===== login: Google + telefone com código ===== */
 function vEntrar(){
-  const a=S.auth, step={google:1,phone:2,code:3}[a.step]; let body='';
-  if(a.step==='google')body=`<h1 class="q">Entre para agendar</h1><p class="lead">Use sua conta Google e confirme seu telefone. Assim só você vê e altera os seus horários.</p>
-    ${a.gform?`<form id="gf" class="card sumcard"><div class="hint">${ic('info')}<span>Simulação da tela do Google. No app real abre o login oficial do Google.</span></div><div class="field"><label for="g-name">Nome da conta</label><input id="g-name" data-i="aname" value="${esc(a.name)}" autocomplete="name" placeholder="Seu nome"></div><div class="field"><label for="g-mail">E-mail Google</label><input id="g-mail" type="email" data-i="amail" value="${esc(a.email)}" autocomplete="email" placeholder="voce@gmail.com"></div><button class="btn block" type="submit">CONTINUAR</button></form>`:`<button class="gbtn" data-a="gopen">${GLOGO} Continuar com Google</button><p class="note center">Sem senha para lembrar. Na próxima etapa confirmamos seu telefone.</p>`}`;
-  if(a.step==='phone')body=`<h1 class="q">Confirme seu telefone</h1><p class="lead">Olá, ${esc(a.name.split(' ')[0]||'')}. Vamos enviar um código de 6 dígitos para o seu WhatsApp ou SMS.</p><form id="pf"><div class="field"><label for="a-tel">Telefone com DDD</label><input id="a-tel" data-i="aphone" value="${esc(a.phone)}" inputmode="tel" autocomplete="tel" placeholder="(11) 90000-0000"></div>${a.err?`<div class="err">${esc(a.err)}</div>`:''}<button class="btn block" type="submit">ENVIAR CÓDIGO</button></form><p class="note">Usamos seu telefone só para confirmar horários e avisar sobre o atendimento (LGPD).</p>`;
-  if(a.step==='code')body=`<h1 class="q">Digite o código</h1><p class="lead">Enviamos 6 dígitos para ${esc(a.phone)}.</p><div class="hint">${ic('info')}<span>Demonstração: o código é <b>${DEMO_CODE}</b>. No app real ele chega por mensagem.</span></div><div class="field"><label for="a-code">Código</label><input id="a-code" class="code-in" data-i="acode" value="${esc(a.code)}" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••"></div>${a.err?`<div class="err">${esc(a.err)}</div>`:''}<div class="stack"><button class="btn block" data-a="verify" ${a.code.length===6?'':'disabled'}>CONFIRMAR</button><button class="btn ghost block" data-a="resend">Reenviar código</button><button class="link" data-a="editphone">Corrigir telefone</button></div>`;
-  return`<div class="auth"><div class="bk-top"><button class="ib" data-a="authback" aria-label="Voltar">${ic('l')}</button><h2>Entrar</h2></div><div class="prog" aria-label="Passo ${step} de 3">${[1,2,3].map(i=>`<i class="${i<=step?'on':''}"></i>`).join('')}</div><div class="view" key="${a.step}">${body}</div></div>`}
+ const a=S.auth, step={google:1,phone:2,code:3,profile:3}[a.step]||1; let body='';
+ if(a.step==='google') body='<h1 class="q">Entre para agendar</h1><p class="lead">Acesse com sua conta Google.</p><button class="gbtn" data-a="gopen">'+GLOGO+' Continuar com Google</button><p class="note center">Autenticação segura pelo Supabase.</p>';
+ if(a.step==='phone') body='<h1 class="q">Confirme seu WhatsApp</h1><p class="lead">Informe seu número para receber um código de verificação.</p><form id="pf"><div class="field"><label for="a-tel">WhatsApp com DDD</label><input id="a-tel" data-i="aphone" value="'+esc(a.phone)+'" inputmode="tel" placeholder="(11) 90000-0000"></div>'+(a.err?'<div class="err">'+esc(a.err)+'</div>':'')+'<button class="btn block" type="submit">ENVIAR CÓDIGO NO WHATSAPP</button></form><p class="note">O envio depende de configurar Twilio Verify como provedor WhatsApp no Supabase.</p>';
+ if(a.step==='code') body='<h1 class="q">Digite o código</h1><p class="lead">Enviamos um código para '+esc(a.phone)+' pelo WhatsApp.</p><div class="field"><label for="a-code">Código de 6 dígitos</label><input id="a-code" class="code-in" data-i="acode" value="'+esc(a.code)+'" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="••••••"></div>'+(a.err?'<div class="err">'+esc(a.err)+'</div>':'')+'<div class="stack"><button class="btn block" data-a="verify" '+(a.code.length===6?'':'disabled')+'>CONFIRMAR</button><button class="btn ghost block" data-a="resend">Reenviar código</button></div>';
+ if(a.step==='profile') body='<h1 class="q">Complete seu perfil</h1><p class="lead">Informe seus dados para continuar.</p><form id="profile-form"><div class="field"><label for="profile-gender">Sexo</label><select id="profile-gender"><option value="">Selecione</option><option value="male">Masculino</option><option value="female">Feminino</option><option value="undisclosed">Prefiro não informar</option></select></div><div class="field"><label for="profile-birth">Data de nascimento</label><input id="profile-birth" type="date" max="'+today()+'"></div>'+(a.err?'<div class="err">'+esc(a.err)+'</div>':'')+'<button class="btn block" type="submit">SALVAR E CONTINUAR</button></form><p class="note">Seu avatar será escolhido aleatoriamente e ficará salvo na sua conta.</p>';
+ return '<div class="auth"><div class="bk-top"><button class="ib" data-a="authback" aria-label="Voltar">'+ic('l')+'</button><h2>Entrar</h2></div><div class="prog" aria-label="Etapa '+step+' de 3">'+[1,2,3].map(i=>'<i class="'+(i<=step?'on':'')+'"></i>').join('')+'</div><div class="view">'+body+'</div></div>';
+}
 
 /* ===== agendamento (cliente logado) ===== */
 const STEPS=['Serviço','Profissional','Data','Horário','Confirmação'];
@@ -595,14 +605,14 @@ function vDone(){const x=S.book.done, br=barById(x.bid);
 
 /* ===== meus agendamentos ===== */
 function vMeus(){
-  const u=S.user, ph=digits(u.phone), list=S.bookings.filter(b=>digits(b.phone)===ph), n=Date.now();
+  const u=S.user, list=S.bookings.filter(b=>b.user_id===authSession?.user?.id), n=Date.now();
   const up=list.filter(b=>startAt(b)>=n&&b.status!=='cancelado'&&b.status!=='concluido').sort((a,b)=>startAt(a)-startAt(b)), hist=list.filter(b=>!up.includes(b)).sort((a,b)=>startAt(b)-startAt(a));
   const card=(b,isUp)=>{const can=isUp&&canChange(b), rv=S.reviews.find(r=>r.bk===b.id), cc=S.cc===b.id;
     return`<div class="card sumcard"><div class="row-between"><b style="font-family:var(--f-display);font-size:17px">${longDate(b.date)} · <span class="num">${hm(b.time)}</span></b><span class="badge s-${b.status}">${stLabel(b.status)}</span></div><div class="sr"><span>${esc(b.names)}</span><b>${brl(b.total)}</b></div><div class="meta">${ic('user')}${esc(barById(b.bid).name)}</div>
     ${isUp?`<div class="acts">${can?`<button data-a="resched" data-id="${b.id}">${ic('swap')} Remarcar</button><button class="bad" data-a="cancel" data-id="${b.id}">${cc?'Confirmar cancelamento':'Cancelar'}</button>`:`<span class="note" style="margin:6px 0 0">Prazo para remarcar ou cancelar encerrado. Fale com a barbearia:</span><a href="${waLink('Olá! Preciso alterar meu horário de '+longDate(b.date)+' às '+hm(b.time)+'.')}" target="_blank" rel="noopener">${ic('wa')} WhatsApp</a>`}</div>`:''}
     ${b.status==='concluido'?(rv?`<div style="margin-top:10px;display:flex;align-items:center;gap:10px">${stars(rv.stars)}<span class="note" style="margin:0">Sua avaliação</span></div>`:`<div class="acts"><button data-a="review" data-id="${b.id}" style="background:var(--y);color:var(--y-ink)">${ic('star')} Avaliar atendimento</button></div>`):''}</div>`};
   return`${topbar()}<div class="ph1"><h1>Meus agendamentos</h1></div>
-  <div class="card acct"><div class="av2">${esc(initial(u.name))}</div><div><b>${esc(u.name)}</b><span>${esc(u.email)}<br><span class="num">${esc(u.phone)}</span></span></div><button class="btn ghost sm" data-a="logout-c">Sair</button></div>
+  <div class="card acct"><div class="av2" style="padding:0;overflow:hidden"><img src="${avatarUrl(u.avatar_seed)}" alt="Avatar" style="width:100%;height:100%;object-fit:cover"></div><div><b>${esc(u.name)}</b><span>${esc(u.email)}<br><span class="num">${esc(u.phone)}</span></span></div><button class="btn ghost sm" data-a="logout-c">Sair</button></div>
   ${pendingReviews().length?`<button class="card banner" data-a="review" data-id="${pendingReviews()[0].id}">${ic('star')}<div><b>Avalie seu último atendimento</b><span>${esc(barById(pendingReviews()[0].bid).name)} · ${longDate(pendingReviews()[0].date)}</span></div></button>`:''}
   <div class="sec-h"><h3>Próximos</h3></div><div class="stack">${up.map(b=>card(b,true)).join('')||'<div class="card empty-st"><b>Nenhum horário marcado</b>Que tal agendar o próximo corte?<br><br><button class="btn sm" data-a="start">Agendar</button></div>'}</div>${hist.length?`<div class="sec-h" style="margin-top:28px"><h3>Histórico</h3></div><div class="stack">${hist.map(b=>card(b,false)).join('')}</div>`:''}`}
 
@@ -615,7 +625,7 @@ function metrics(n){
     if(a.status!=='cancelado')a.names.split(' + ').forEach(nm=>per.svc[nm]=(per.svc[nm]||0)+1)});per.rev+=rev;per.days.push([d,rev])});
   return per}
 function vAdmin(){
-  if(!S.adminAuth)return`<div class="card login view"><div class="logo">JC</div><h2>Área do proprietário</h2><p>Acesso restrito. Só o e-mail Google autorizado do proprietário entra. Na versão final essa checagem roda no servidor.</p><button class="gbtn" data-a="adminlogin">${GLOGO} Entrar com Google</button><p class="note" style="margin-top:14px">Demonstração: o botão entra direto.</p></div>`;
+  if(!S.adminAuth)return`<div class="card login view"><div class="logo">JC</div><h2>Área do proprietário</h2><p>Entre com a conta Google autorizada no Supabase.</p><button class="gbtn" data-a="adminlogin">${GLOGO} Entrar com Google</button><p class="note" style="margin-top:14px">Acesso controlado por permissões e RLS.</p></div>`;
   let body={dash:aDash,agenda:aAgenda,serv:aServ,barb:aBarb,cli:aCli,fin:aFin,cfg:aCfg}[S.tab]();
   return`<div class="top"><div class="logo">JC</div><div><small>Painel do proprietário</small><h2>${esc(S.cfg.name)}</h2></div><div class="sp"></div><button class="ib" data-a="logout" aria-label="Sair do painel">${ic('out')}</button></div><div class="adm"><nav class="atabs" aria-label="Seções do painel">${TABS.map(t=>`<button class="at ${S.tab===t[0]?'on':''}" data-a="tab" data-t="${t[0]}">${ic(t[2])}${t[1]}</button>`).join('')}</nav><div class="view" key="${S.tab}" style="min-width:0;display:grid;gap:14px">${body}</div></div>`}
 function aDash(){
@@ -623,9 +633,9 @@ function aDash(){
   const todayAct=td.filter(a=>a.status!=='cancelado'), est=todayAct.reduce((a,x)=>a+x.price,0);
   const next=td.filter(a=>a.start>=now&&['pendente','confirmado'].includes(a.status)).slice(0,3);
   const mx=Math.max(1,...m.days.map(d=>d[1])), sv=Object.entries(m.svc).sort((a,b)=>b[1]-a[1]).slice(0,5), smx=sv[0]?sv[0][1]:1, bar=BB.map(b=>[b.name,m.bar[b.id]||0]), bmx=Math.max(1,...bar.map(x=>x[1]));
-  const clients=new Set(S.bookings.map(b=>digits(b.phone))).size+NAMES.length;
+  const clients=new Set(S.bookings.map(b=>digits(b.phone))).size;
   const rv=S.reviews.slice(-3).reverse();
-  return`<div class="kpis"><div class="card kpi"><span>Agendamentos hoje</span><b>${todayAct.length}</b><small>${next.length} ainda por vir</small></div><div class="card kpi hi"><span>Estimado do dia</span><b>${brl(est)}</b><small>Inclui horários ainda não atendidos</small></div><div class="card kpi"><span>Faturamento do mês</span><b>${brl(mon.rev)}</b><small>Somente concluídos</small></div><div class="card kpi"><span>Total de clientes</span><b>${clients}</b><small>Dados de exemplo</small></div></div>
+  return`<div class="kpis"><div class="card kpi"><span>Agendamentos hoje</span><b>${todayAct.length}</b><small>${next.length} ainda por vir</small></div><div class="card kpi hi"><span>Estimado do dia</span><b>${brl(est)}</b><small>Inclui horários ainda não atendidos</small></div><div class="card kpi"><span>Faturamento do mês</span><b>${brl(mon.rev)}</b><small>Somente concluídos</small></div><div class="card kpi"><span>Total de clientes</span><b>${clients}</b><small>Clientes cadastrados</small></div></div>
   <div class="card panel"><div class="row-between" style="margin-bottom:14px"><h3 style="margin:0">Faturamento por dia</h3><div class="seg" role="group" aria-label="Período">${[7,30].map(n=>`<button class="${S.period===n?'on':''}" data-a="period" data-n="${n}">${n} dias</button>`).join('')}</div></div>
    <div class="chart" role="img" aria-label="Faturamento dos últimos ${S.period} dias: total ${brl(m.rev)}">${m.days.map(d=>`<i class="${d[1]?'':'z'}" style="height:${d[1]?Math.max(4,d[1]/mx*100):3}%" title="${pdate(d[0]).toLocaleDateString('pt-BR')}: ${brl(d[1])}"></i>`).join('')}</div><div class="chart-x num"><span>${pdate(m.days[0][0]).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</span><span>Total ${brl(m.rev)}</span><span>Hoje</span></div></div>
   <div class="kpis"><div class="card kpi"><span>Concluídos (${S.period} dias)</span><b>${m.done}</b></div><div class="card kpi"><span>Cancelamentos</span><b>${m.canc}</b></div><div class="card kpi"><span>Faltas</span><b>${m.faltas}</b></div><div class="card kpi"><span>Ticket médio</span><b>${m.done?brl(Math.round(m.rev/m.done)):'—'}</b></div></div>
@@ -657,7 +667,7 @@ function aFin(){
   <p class="note">Um agendamento não conta como pagamento recebido. Formas de pagamento e relatórios por período entram na ETAPA 6.</p>`}
 function aCfg(){const c=S.cfg,f=(id,l,v,ph,m)=>`<div class="field"><label for="c-${id}">${l}</label><input id="c-${id}" data-i="cfg" data-k="${id}" value="${esc(v)}" placeholder="${ph||''}" ${m||''}></div>`;
   return`<div class="card panel"><h3>Dados da barbearia</h3>${f('name','Nome',c.name)}${f('desc','Descrição',c.desc)}${f('address','Endereço',c.address,'Rua, número, bairro')}${f('whatsapp','WhatsApp (com DDD)',c.whatsapp,'11900000000','inputmode="tel"')}${f('instagram','Instagram',c.instagram,'@usuario')}${f('hours','Horário de funcionamento',c.hours)}${f('minCancelH','Cancelar ou remarcar até (horas antes)',c.minCancelH,'','inputmode="numeric"')}${f('confirmMsg','Mensagem de confirmação (WhatsApp)',c.confirmMsg)}<button class="btn block" data-a="savecfg">SALVAR</button><p class="note">As alterações aparecem no app. Logotipo e fotos vão para o Supabase Storage na ETAPA 2.</p></div>
-  <div class="card panel"><h3>Dados da demonstração</h3><p style="color:var(--mut);font-size:13.5px;margin-bottom:14px">Apaga o que você cadastrou aqui e volta aos dados de exemplo.</p><button class="btn danger block" data-a="resetall">${S.delc==='reset'?'Toque de novo para confirmar':'Restaurar dados de exemplo'}</button></div>`}
+}
 
 /* ===== folhas (bottom sheets) ===== */
 function openSheet(o){S.sheet=o;renderSheet()}
@@ -740,14 +750,14 @@ const GATED=['agendar','meus'];
 function go(v){if(location.hash!=='#'+v){location.hash=v;return}setView(v)}
 function setView(v){
   if(!['home','servicos','equipe','agendar','meus','admin','entrar'].includes(v))v='home';
-  if(GATED.includes(v)&&!S.user){S.next=v;S.auth={step:'google',gform:false,name:'',email:'',phone:'',code:'',err:''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
-  if(v==='entrar'&&S.user){v='home';if(location.hash!=='#home'){location.hash='home';return}}
+  if(GATED.includes(v)&&!S.user){S.next=v;const pendingStep=authSession&&(S.auth.step==='code'||S.auth.step==='profile')?S.auth.step:(authSession?'phone':'google');S.auth={step:pendingStep,name:authSession?.user?.user_metadata?.full_name||S.auth.name||'',email:authSession?.user?.email||S.auth.email||'',phone:S.auth.phone||'',code:S.auth.code||'',err:S.auth.err||'',gender:'',birth_date:''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
+  if(v==='entrar'&&S.user&&S.auth.step!=='code'&&S.auth.step!=='profile'){v='home';if(location.hash!=='#home'){location.hash='home';return}}
   if(v==='agendar'&&!S.cal){const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
   S.view=v;S.cc=null;render();window.scrollTo({top:0})}
 function resetBook(keep){S.book={step:1,svcs:keep||[],barber:'any',date:null,time:null,bid:null,resched:null,done:null};const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
 function newBooking(o){
   const t=totals(o.svcs);
-  const x={id:uid('b'),date:o.date,time:o.time,dur:t.dur,bid:o.bid,names:t.names,svcIds:o.svcs.slice(),total:t.price,name:o.name.trim(),phone:o.phone,status:o.by==='admin'?'confirmado':'pendente',by:o.by};
+  const x={id:uid('b'),user_id:o.by==='admin'?null:authSession?.user?.id,date:o.date,time:o.time,dur:t.dur,bid:o.bid,names:t.names,svcIds:o.svcs.slice(),total:t.price,name:o.name.trim(),phone:o.phone,status:o.by==='admin'?'confirmado':'pendente',by:o.by};
   S.bookings.push(x);return x}
 function cancelOld(key){const u=S.bookings.find(y=>y.id===key);if(u){u.status='cancelado';u.remarcado=true}else S.ov[key]='cancelado'}
 function confirmBook(){
@@ -767,10 +777,38 @@ function saveAppt(){
   persist();S.adate=s.date;toast(s.mode==='resched'?'Horário remarcado.':'Cliente agendado.');closeSheet();render()}
 function fixDate(s){if(!s.svcs.length)return;const t=totals(s.svcs);const d=pdate(s.date<today()?today():s.date);for(let i=0;i<45;i++){const ds=dstr(d);if(slotsFor(ds,s.svcs,s.barber,t.dur,true).length){s.date=ds;return}d.setDate(d.getDate()+1)}}
 function readPhoto(file,cb){const r=new FileReader();r.onload=()=>{const im=new Image();im.onload=()=>{const k=Math.min(1,640/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);cb(c.toDataURL('image/jpeg',.78))};im.src=r.result};r.readAsDataURL(file)}
-function finishLogin(){S.user={name:S.auth.name.trim()||'Cliente',email:S.auth.email.trim(),phone:S.auth.phone};persist();toast('Conta confirmada. Bem-vindo!');const n=S.next||'home';S.next='home';go(n==='entrar'?'home':n)}
+async function startGoogleLogin(){ if(!sb){toast('Configure as chaves do Supabase primeiro.');return;} const r=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}}); if(r.error)toast(r.error.message); }
+async function sendPhoneChallenge(){ const phone=toE164(S.auth.phone); if(!/^\+55\d{10,11}$/.test(phone)){S.auth.err='Informe um WhatsApp válido com DDD.';render();return;} try{const en=await sb.auth.mfa.enroll({factorType:'phone',phone,friendlyName:'Julio Caetano WhatsApp'});if(en.error)throw en.error;factorId=en.data.id;const ch=await sb.auth.mfa.challenge({factorId,channel:'whatsapp'});if(ch.error)throw ch.error;challengeId=ch.data.id;S.auth.phone=phone;S.auth.step='code';S.auth.code='';S.auth.err='';render();}catch(e){S.auth.err=e.message||'Falha no envio. Confira o provedor WhatsApp do Supabase.';render();} }
+async function verifyPhoneChallenge(){try{const r=await sb.auth.mfa.verify({factorId,challengeId,code:S.auth.code});if(r.error)throw r.error;const u=await sb.auth.getUser();if(u.error)throw u.error;const p=await sb.from('profiles').select('*').eq('id',u.data.user.id).maybeSingle();if(p.error)throw p.error;if(p.data){S.profile=p.data;S.user={name:p.data.full_name,email:u.data.user.email,phone:p.data.phone,gender:p.data.gender,birth_date:p.data.birth_date,avatar_seed:p.data.avatar_seed};await loadCloudData();finishAuthenticated();}else{S.auth.step='profile';S.auth.err='';render();}}catch(e){S.auth.err=e.message||'Código inválido ou expirado.';render();}}
+async function saveProfile(e){e.preventDefault();const gender=document.getElementById('profile-gender').value,birth=document.getElementById('profile-birth').value;if(!gender||!birth||birth>=today()){S.auth.err='Informe sexo e data de nascimento válidos.';render();return;}const user=authSession.user,seed=S.profile?.avatar_seed||makeAvatarSeed(),name=user.user_metadata?.full_name||user.user_metadata?.name||user.email.split('@')[0]||'Cliente';const row={id:user.id,full_name:name,phone:S.auth.phone,gender,birth_date:birth,avatar_seed:seed};const r=await sb.from('profiles').upsert(row).select().single();if(r.error){S.auth.err=r.error.message;render();return;}S.profile=r.data;S.user={name:r.data.full_name,email:user.email,phone:r.data.phone,gender:r.data.gender,birth_date:r.data.birth_date,avatar_seed:r.data.avatar_seed};await loadCloudData();finishAuthenticated();}
+function finishAuthenticated(){toast('Conta verificada. Bem-vindo!');const next=S.next||'home';S.next='home';go(next==='entrar'?'home':next);}
+async function loadPublicData(){const [sv,bb,cfg,busy]=await Promise.all([sb.from('services').select('*').eq('is_active',true).order('sort_order'),sb.from('barbers').select('*').eq('is_active',true).order('sort_order'),sb.from('business_settings').select('settings').eq('id','main').maybeSingle(),sb.from('booking_busy_slots').select('*')]);if(sv.data)SV=sv.data.map(x=>({id:x.id,name:x.name,cat:x.category,price:x.price_cents,dur:x.duration_minutes,img:x.image_key,desc:x.description,pop:x.is_featured?1:0,on:x.is_active?1:0}));if(bb.data)BB=bb.data.map(x=>({id:x.id,name:x.name,role:x.role,img:x.image_key,bio:x.bio,off:x.days_off||[],svc:x.service_ids||[],on:x.is_active?1:0}));if(cfg.data?.settings)S.cfg=Object.assign({},CFG0,cfg.data.settings);S.busySlots=busy.data||[];bust()}
+async function loadCloudData(){if(!sb||!authSession)return;await loadPublicData();const [sv,bb,ap,rv,cfg,role]=await Promise.all([sb.from('services').select('*').order('sort_order'),sb.from('barbers').select('*').order('sort_order'),sb.from('appointments').select('*'),sb.from('reviews').select('*').order('created_at'),sb.from('business_settings').select('settings').eq('id','main').maybeSingle(),sb.from('user_roles').select('role').eq('user_id',authSession.user.id).maybeSingle()]);if(sv.data)SV=sv.data.map(x=>({id:x.id,name:x.name,cat:x.category,price:x.price_cents,dur:x.duration_minutes,img:x.image_key,desc:x.description,pop:x.is_featured?1:0,on:x.is_active?1:0}));if(bb.data)BB=bb.data.map(x=>({id:x.id,name:x.name,role:x.role,img:x.image_key,bio:x.bio,off:x.days_off||[],svc:x.service_ids||[],on:x.is_active?1:0}));S.bookings=(ap.data||[]).map(x=>({id:x.id,user_id:x.user_id,date:x.appointment_date,time:x.start_minute,dur:x.duration_minutes,bid:x.barber_id,names:x.service_names,svcIds:x.service_ids||[],total:x.total_cents,name:x.client_name,phone:x.phone,status:x.status,by:x.source}));S.reviews=(rv.data||[]).map(x=>({id:x.id,bk:x.booking_id,bid:x.barber_id,stars:x.rating,text:x.comment,name:x.client_name,date:x.created_at?.slice(0,10)}));if(cfg.data?.settings)S.cfg=Object.assign({},CFG0,cfg.data.settings);ownerAccess=['owner','admin'].includes(role.data?.role);const assurance=await sb.auth.mfa.getAuthenticatorAssuranceLevel();S.adminAuth=ownerAccess&&assurance.data?.currentLevel==='aal2';bust();}
+async function handleAuthSession(session){
+ authSession=session;
+ if(!session){S.user=null;S.profile=null;S.adminAuth=false;S.bookings=[];S.reviews=[];return;}
+ const [p,factors,aal]=await Promise.all([sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle(),sb.auth.mfa.listFactors(),sb.auth.mfa.getAuthenticatorAssuranceLevel()]);
+ const verified=(factors.data?.all||[]).find(x=>x.factor_type==='phone'&&x.status==='verified');
+ S.auth.name=p.data?.full_name||session.user.user_metadata?.full_name||session.user.email?.split('@')[0]||'Cliente';
+ S.auth.email=session.user.email||'';
+ if(p.data){S.profile=p.data;S.auth.phone=p.data.phone;}
+ if(verified&&aal.data?.nextLevel==='aal2'&&aal.data?.currentLevel!=='aal2'){
+  factorId=verified.id;const ch=await sb.auth.mfa.challenge({factorId,channel:'whatsapp'});
+  if(!ch.error){challengeId=ch.data.id;S.auth.step='code';S.auth.code='';S.auth.err='';S.user=null;}
+ }else if(verified&&aal.data?.currentLevel==='aal2'&&p.data){S.user={name:p.data.full_name,email:session.user.email,phone:p.data.phone,gender:p.data.gender,birth_date:p.data.birth_date,avatar_seed:p.data.avatar_seed};}
+ else{S.auth.step='phone';S.user=null;}
+ await loadCloudData();
+}
+async function boot(){
+ if(!sb){S.loading=false;setView(location.hash.slice(1)||'home');return;}
+ await loadPublicData();
+ const r=await sb.auth.getSession();await handleAuthSession(r.data.session);
+ sb.auth.onAuthStateChange(async(_event,session)=>{await handleAuthSession(session);if(session&&!S.user){if(location.hash!=='#entrar')location.hash='entrar';render()}else if(!session)render()});
+ S.loading=false;setView(location.hash.slice(1)||'home');
+}
 function closeSheetSilent(){if(S.sheet){S.sheet=null;S.delc=null;renderSheet()}}
 
-document.addEventListener('click',e=>{
+document.addEventListener('click',async e=>{
   const el=e.target.closest('[data-a]');if(!el)return;const a=el.dataset.a,d=el.dataset,b=S.book,sh=S.sheet;
   switch(a){
    case'go':if(d.v==='agendar'&&b.done)resetBook();closeSheetSilent();go(d.v);break;
@@ -789,12 +827,12 @@ document.addEventListener('click',e=>{
      b.step++;render();window.scrollTo({top:0});break;
    case'back':if(b.done){go('home');break}if(b.resched&&b.step<=3){go('meus');break}if(b.step>1){b.step--;render();window.scrollTo({top:0})}else go('home');break;
    /* conta */
-   case'gopen':S.auth.gform=true;render();break;
-   case'authback':{const st=S.auth.step;if(st==='code'){S.auth.step='phone';S.auth.code='';S.auth.err=''}else if(st==='phone'){S.auth.step='google';S.auth.err=''}else if(S.auth.gform){S.auth.gform=false}else{go('home');break}render();break}
-   case'verify':if(S.auth.code===DEMO_CODE)finishLogin();else{S.auth.err='Código incorreto. Confira e tente de novo.';render()}break;
-   case'resend':toast('Novo código enviado. Na demonstração ele continua '+DEMO_CODE+'.');break;
+   case'gopen':startGoogleLogin();break;
+   case'authback':{const st=S.auth.step;if(st==='code'){S.auth.step='phone';S.auth.code='';S.auth.err=''}else if(st==='phone'){S.auth.step='google';S.auth.err=''}else{go('home');break}render();break}
+   case'verify':verifyPhoneChallenge();break;
+   case'resend':sendPhoneChallenge();break;
    case'editphone':S.auth.step='phone';S.auth.code='';S.auth.err='';render();break;
-   case'logout-c':S.user=null;persist();toast('Você saiu da conta.');go('home');break;
+   case'logout-c':sb.auth.signOut().then(()=>{toast('Você saiu da conta.');go('home')});break;
    /* meus */
    case'cancel':{if(S.cc!==d.id){S.cc=d.id;render();break}const x=S.bookings.find(y=>y.id===d.id);if(x&&canChange(x)){x.status='cancelado';persist();S.cc=null;toast('Agendamento cancelado.')}else toast('Prazo de cancelamento encerrado.');render();break}
    case'resched':{const x=S.bookings.find(y=>y.id===d.id);if(!x)break;if(!canChange(x)){toast('Prazo para remarcar encerrado.');break}
@@ -803,7 +841,7 @@ document.addEventListener('click',e=>{
    case'sh-star':sh.stars=+d.n;renderSheet();break;
    case'rv-save':{const x=S.bookings.find(y=>y.id===sh.bk);S.reviews.push({id:uid('r'),bk:sh.bk,bid:x.bid,stars:sh.stars,text:sh.text.trim(),name:(S.user?S.user.name.split(' ')[0]:'Cliente'),date:today()});persist();closeSheet();toast('Obrigado pela avaliação!');render();break}
    /* admin */
-   case'adminlogin':S.adminAuth=true;render();break;
+   case'adminlogin':if(ownerAccess)render();else startGoogleLogin();break;
    case'tab':S.tab=d.t;closeSheetSilent();render();window.scrollTo({top:0});break;
    case'more':openSheet({t:'more'});break;
    case'period':S.period=+d.n;render();break;
@@ -826,6 +864,7 @@ document.addEventListener('click',e=>{
      else{let id=slug(sh.name),n=1;while(svcById(id))id=slug(sh.name)+'-'+(++n);SV.push({id,name:sh.name.trim(),cat:sh.cat,price:p,dur:du,desc:sh.desc.trim(),img:sh.img,on:sh.on?1:0,pop:sh.pop?1:0});BB.forEach(x=>{if(x.on)x.svc.push(id)})}
      bust();persist();closeSheet();toast('Serviço salvo. Já aparece no app.');render();break}
    case'del-svc':if(S.delc!==sh.id){S.delc=sh.id;renderSheet();break}
+     if(sb){const {error}=await sb.from('services').delete().eq('id',sh.id);if(error){toast(error.message);break}}
      SV=SV.filter(x=>x.id!==sh.id);BB.forEach(x=>x.svc=x.svc.filter(i=>i!==sh.id));S.book.svcs=S.book.svcs.filter(i=>i!==sh.id);bust();persist();closeSheet();toast('Serviço removido.');render();break;
    case'bb-new':openSheet({t:'bb',id:null,name:'',role:'',bio:'',img:null,svc:SV.filter(x=>x.on).map(x=>x.id),off:[],on:1,err:''});break;
    case'bb-edit':{const x=barById(d.id);openSheet({t:'bb',id:x.id,name:x.name,role:x.role,bio:x.bio||'',img:x.img,svc:x.svc.slice(),off:x.off.slice(),on:x.on,err:''});break}
@@ -835,6 +874,7 @@ document.addEventListener('click',e=>{
      else{let id=slug(sh.name),n=1;while(BB.find(x=>x.id===id))id=slug(sh.name)+'-'+(++n);BB.push({id,name:sh.name.trim(),role:sh.role.trim(),bio:sh.bio.trim(),img:sh.img,svc:sh.svc,off:sh.off,on:sh.on?1:0})}
      bust();persist();closeSheet();toast('Barbeiro salvo. Já aparece no app.');render();break;
    case'del-bb':if(S.delc!==sh.id){S.delc=sh.id;renderSheet();break}
+     if(sb){const {error}=await sb.from('barbers').delete().eq('id',sh.id);if(error){toast(error.message);break}}
      BB=BB.filter(x=>x.id!==sh.id);bust();persist();closeSheet();toast('Barbeiro removido.');render();break;
    case'sh-bsvc':{const i=sh.svc.indexOf(d.id);i>=0?sh.svc.splice(i,1):sh.svc.push(d.id);renderSheet();break}
    case'sh-off':{const n=+d.d,i=sh.off.indexOf(n);i>=0?sh.off.splice(i,1):sh.off.push(n);renderSheet();break}
@@ -844,7 +884,7 @@ document.addEventListener('click',e=>{
    case'savecfg':persist();toast('Configurações salvas. Já aparecem no app.');break;
    case'resetall':if(S.delc!=='reset'){S.delc='reset';render();break}
      SV=JSON.parse(JSON.stringify(DEF_SV));BB=JSON.parse(JSON.stringify(DEF_BB));S.bookings=[];S.reviews=[];S.ov={};S.sent={};S.exp=[{d:'Aluguel (exemplo)',v:180000},{d:'Produtos (exemplo)',v:42000}];S.cfg=Object.assign({},CFG0);S.delc=null;bust();persist();toast('Dados de exemplo restaurados.');render();break;
-   case'logout':S.adminAuth=false;closeSheetSilent();go('home');break;
+   case'logout':sb.auth.signOut().then(()=>{S.adminAuth=false;closeSheetSilent();go('home')});break;
   }
 });
 document.addEventListener('input',e=>{
@@ -852,7 +892,7 @@ document.addEventListener('input',e=>{
   if(i==='aname')S.auth.name=el.value;
   else if(i==='amail')S.auth.email=el.value;
   else if(i==='aphone'){el.value=phoneFmt(el.value);S.auth.phone=el.value}
-  else if(i==='acode'){el.value=el.value.replace(/\D/g,'').slice(0,6);S.auth.code=el.value;S.auth.err='';const bt=document.querySelector('[data-a=verify]');if(bt)bt.disabled=el.value.length!==6;if(el.value.length===6&&el.value===DEMO_CODE)setTimeout(finishLogin,250)}
+  else if(i==='acode'){el.value=el.value.replace(/\D/g,'').slice(0,6);S.auth.code=el.value;S.auth.err='';const bt=document.querySelector('[data-a=verify]');if(bt)bt.disabled=el.value.length!==6;}
   else if(i==='cq'){S.cq=el.value;render()}
   else if(i==='cfg'){const k=el.dataset.k;S.cfg[k]=k==='minCancelH'?(parseInt(el.value,10)||0):el.value}
   else if(i==='sh'){S.sheet[el.dataset.k]=el.value;if(S.sheet.t==='appt'){const bt=document.querySelector('[data-a=sh-save]');if(bt)bt.disabled=!(S.sheet.name.trim().length>=2&&digits(S.sheet.phone).length>=10&&S.sheet.svcs.length&&S.sheet.time!=null)}}
@@ -865,18 +905,17 @@ document.addEventListener('change',e=>{
   if(i==='photo'&&el.files&&el.files[0])readPhoto(el.files[0],u=>{S.sheet.img=u;renderSheet()});
 });
 document.addEventListener('submit',e=>{
-  e.preventDefault();const id=e.target.id;
-  if(id==='gf'){const a=S.auth;if(a.name.trim().length<2||!/.+@.+\..+/.test(a.email)){toast('Preencha nome e e-mail.');return}a.step='phone';a.err='';render()}
-  if(id==='pf'){const a=S.auth;if(digits(a.phone).length<10){a.err='Digite o telefone com DDD.';render();return}a.step='code';a.code='';a.err='';render()}
-  if(id==='ex'){const dd=$('#ex-d').value.trim(),v=parseMoney($('#ex-v').value);if(dd&&!isNaN(v)&&v>0){S.exp.push({d:dd,v});persist();render()}else toast('Preencha descrição e valor, por exemplo 120,50.')}
+ e.preventDefault();const id=e.target.id;
+ if(id==='pf'){const x=S.auth;if(digits(x.phone).length<10){x.err='Digite o WhatsApp com DDD.';render();return}sendPhoneChallenge()}
+ if(id==='profile-form')saveProfile(e);
+ if(id==='ex'){const dd=$('#ex-d').value.trim(),v=parseMoney($('#ex-v').value);if(dd&&!isNaN(v)&&v>0){S.exp.push({d:dd,v});persist();render()}else toast('Preencha descrição e valor, por exemplo 120,50.')}
 });
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.sheet)closeSheet()});
 /* esconde as barras fixas enquanto o teclado está aberto */
 document.addEventListener('focusin',e=>{if(/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)&&!e.target.closest('.sh-p'))document.body.classList.add('kb')});
 document.addEventListener('focusout',()=>setTimeout(()=>{const a=document.activeElement;if(!a||!/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))document.body.classList.remove('kb')},60));
 window.addEventListener('hashchange',()=>setView(location.hash.slice(1)||'home'));
-setView(location.hash.slice(1)||'home');
-setTimeout(()=>{S.loading=false;if(S.view==='home')render()},550);
+boot();
 </script>
 
 </body></html>
