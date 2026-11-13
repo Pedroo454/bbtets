@@ -358,14 +358,14 @@ button.tr-row:hover{border-color:rgba(255,212,0,.45)}
 </style>
 
 <div class="wrap">
-  <div class="demo"><span><b>DEMONSTRAÇÃO</b> · dados fictícios · ETAPA 1</span><button data-a="go" data-v="admin" id="demoAdmin">Ver painel admin (somente demo)</button></div>
+  <div class="demo"><span><b>JULIO CAETANO</b> · AGENDAMENTO ONLINE</span><button data-a="go" data-v="admin" id="demoAdmin">Área do proprietário</button></div>
   <main id="app"></main>
 </div>
 <div id="nav"></div>
 <div id="sheet"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script>
+<script type="module">
 /* ===== ícones ===== */
 const IC={
 home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
@@ -424,10 +424,10 @@ const OPEN={start:540,end:1140,days:[1,2,3,4,5,6]};
 const NB=(OPEN.end-OPEN.start)/30;
 const NAMES=['Lucas M.','Pedro H.','Gabriel S.','Thiago R.','Mateus A.','Bruno C.','André L.','Felipe O.','Caio T.','Renan P.','Vitor G.','Danilo F.','Igor N.','Leandro B.'];
 const CFG0={name:'Barbearia Julio Caetano',address:'',whatsapp:'',instagram:'',desc:'Corte, barba e atendimento com hora marcada em Poá, SP.',minCancelH:2,hours:'Seg a Sáb · 09h às 19h',confirmMsg:'Olá! Quero confirmar meu horário na Barbearia Julio Caetano.'};
-const DEMO_CODE='123456';
+// OTPs são gerados e validados pelo Supabase Auth.
 
 const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const KEY='jc-v2', sv0=store.get(KEY,null)||{};
+const KEY='jc-v3', sv0={};
 let SV=sv0.SV||JSON.parse(JSON.stringify(DEF_SV)), BB=sv0.BB||JSON.parse(JSON.stringify(DEF_BB));
 const S={view:'home',loading:true,cat:'Todos',
   book:{step:1,svcs:[],barber:'any',date:null,time:null,bid:null,resched:null,done:null},
