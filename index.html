@@ -743,7 +743,7 @@ function render(){
   main.className=v==='admin'?'admin':'';
   main.innerHTML=h;
   $('#nav').innerHTML=navHTML();
-  $('#demoAdmin').classList.toggle('hide',v==='admin');
+  $('#demoAdmin').classList.toggle('hide',!S.adminAuth||v==='admin');
   if(keep){const e=document.getElementById(keep);if(e&&e.tagName==='INPUT'){e.focus({preventScroll:true});try{const l=e.value.length;e.setSelectionRange(l,l)}catch(x){}}}
 }
 const GATED=['agendar','meus'];
