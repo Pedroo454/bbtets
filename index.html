@@ -800,6 +800,7 @@ async function handleAuthSession(session){
 }
 async function boot(){
  if(!sb){S.loading=false;setView(location.hash.slice(1)||'home');return;}
+ await loadPublicData();
  const r=await sb.auth.getSession();await handleAuthSession(r.data.session);
  sb.auth.onAuthStateChange(async(_event,session)=>{await handleAuthSession(session);if(session&&!S.user){if(location.hash!=='#entrar')location.hash='entrar';render()}else if(!session)render()});
  S.loading=false;setView(location.hash.slice(1)||'home');
