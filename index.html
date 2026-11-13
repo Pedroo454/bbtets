@@ -365,7 +365,17 @@ button.tr-row:hover{border-color:rgba(255,212,0,.45)}
 <div id="sheet"></div>
 <div id="toast" role="status" aria-live="polite"></div>
 
-<script type="module">
+<script src="supabase-config.js"></script>
+<script type="module">import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { createAvatar } from 'https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm';
+import { notionists } from 'https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm';
+const SB_URL=window.JC_SUPABASE_URL||''; const SB_KEY=window.JC_SUPABASE_ANON_KEY||'';
+const sb=/^https:\/\/.+\.supabase\.co$/.test(SB_URL)&&SB_KEY.length>20?createClient(SB_URL,SB_KEY):null;
+let authSession=null, factorId=null, challengeId=null, ownerAccess=false;
+const avatarUrl=seed=>createAvatar(notionists,{seed:seed||'jc-user',radius:50,backgroundColor:['ffd400','f4d35e','e8e8e8']}).toDataUri();
+const makeAvatarSeed=()=>crypto.randomUUID?crypto.randomUUID():'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+const toE164=v=>{const d=String(v||'').replace(/\D/g,'');return d.startsWith('55')?'+'+d:'+55'+d;};
+
 /* ===== ícones ===== */
 const IC={
 home:'<path d="M4 11l8-7 8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
@@ -431,11 +441,11 @@ const KEY='jc-v3', sv0={};
 let SV=sv0.SV||JSON.parse(JSON.stringify(DEF_SV)), BB=sv0.BB||JSON.parse(JSON.stringify(DEF_BB));
 const S={view:'home',loading:true,cat:'Todos',
   book:{step:1,svcs:[],barber:'any',date:null,time:null,bid:null,resched:null,done:null},
-  cal:null,bookings:sv0.bookings||[],reviews:sv0.reviews||[],user:sv0.user||null,
-  auth:{step:'google',gform:false,name:'',email:'',phone:'',code:'',err:''},next:'home',
-  ov:sv0.ov||{},sent:sv0.sent||{},cfg:Object.assign({},CFG0,sv0.cfg||{}),adminAuth:false,tab:'dash',period:7,adate:null,
-  exp:sv0.exp||[{d:'Aluguel (exemplo)',v:180000},{d:'Produtos (exemplo)',v:42000}],cq:'',sheet:null,cc:null,delc:null};
-function persist(){store.set(KEY,{SV,BB,bookings:S.bookings,reviews:S.reviews,user:S.user,ov:S.ov,sent:S.sent,cfg:S.cfg,exp:S.exp})}
+  cal:null,bookings:[],reviews:[],user:null,profile:null,
+  auth:{step:'google',name:'',email:'',phone:'',code:'',err:'',gender:'',birth_date:''},next:'home',
+  ov:{},sent:{},cfg:Object.assign({},CFG0),adminAuth:false,tab:'dash',period:7,adate:null,
+  exp:[],cq:'',sheet:null,cc:null,delc:null};
+async function persist(){/* Supabase persistence is handled by remote data actions. */}
 
 /* ===== utilitários ===== */
 const $=s=>document.querySelector(s);
@@ -479,7 +489,7 @@ function seeded(bid,ds){
   const k=bid+ds; if(cache.has(k))return cache.get(k);
   const d=pdate(ds), b=BB.find(x=>x.id===bid), out=[];
   const pool=b?b.svc.map(svcById).filter(s=>s&&s.on):[];
-  if(b&&b.on&&pool.length&&OPEN.days.includes(d.getDay())&&!b.off.includes(d.getDay())){
+  if(false && b&&b.on&&pool.length&&OPEN.days.includes(d.getDay())&&!b.off.includes(d.getDay())){
     const r=rng(hash(k)), n=Date.now(); let i=Math.floor(r()*2);
     while(i<NB){
       const s=pool[Math.floor(r()*pool.length)], blocks=Math.ceil(s.dur/30);
@@ -595,7 +605,7 @@ function vDone(){const x=S.book.done, br=barById(x.bid);
 
 /* ===== meus agendamentos ===== */
 function vMeus(){
-  const u=S.user, ph=digits(u.phone), list=S.bookings.filter(b=>digits(b.phone)===ph), n=Date.now();
+  const u=S.user, list=S.bookings.filter(b=>b.user_id===authSession?.user?.id), n=Date.now();
   const up=list.filter(b=>startAt(b)>=n&&b.status!=='cancelado'&&b.status!=='concluido').sort((a,b)=>startAt(a)-startAt(b)), hist=list.filter(b=>!up.includes(b)).sort((a,b)=>startAt(b)-startAt(a));
   const card=(b,isUp)=>{const can=isUp&&canChange(b), rv=S.reviews.find(r=>r.bk===b.id), cc=S.cc===b.id;
     return`<div class="card sumcard"><div class="row-between"><b style="font-family:var(--f-display);font-size:17px">${longDate(b.date)} · <span class="num">${hm(b.time)}</span></b><span class="badge s-${b.status}">${stLabel(b.status)}</span></div><div class="sr"><span>${esc(b.names)}</span><b>${brl(b.total)}</b></div><div class="meta">${ic('user')}${esc(barById(b.bid).name)}</div>
@@ -623,7 +633,7 @@ function aDash(){
   const todayAct=td.filter(a=>a.status!=='cancelado'), est=todayAct.reduce((a,x)=>a+x.price,0);
   const next=td.filter(a=>a.start>=now&&['pendente','confirmado'].includes(a.status)).slice(0,3);
   const mx=Math.max(1,...m.days.map(d=>d[1])), sv=Object.entries(m.svc).sort((a,b)=>b[1]-a[1]).slice(0,5), smx=sv[0]?sv[0][1]:1, bar=BB.map(b=>[b.name,m.bar[b.id]||0]), bmx=Math.max(1,...bar.map(x=>x[1]));
-  const clients=new Set(S.bookings.map(b=>digits(b.phone))).size+NAMES.length;
+  const clients=new Set(S.bookings.map(b=>digits(b.phone))).size;
   const rv=S.reviews.slice(-3).reverse();
   return`<div class="kpis"><div class="card kpi"><span>Agendamentos hoje</span><b>${todayAct.length}</b><small>${next.length} ainda por vir</small></div><div class="card kpi hi"><span>Estimado do dia</span><b>${brl(est)}</b><small>Inclui horários ainda não atendidos</small></div><div class="card kpi"><span>Faturamento do mês</span><b>${brl(mon.rev)}</b><small>Somente concluídos</small></div><div class="card kpi"><span>Total de clientes</span><b>${clients}</b><small>Dados de exemplo</small></div></div>
   <div class="card panel"><div class="row-between" style="margin-bottom:14px"><h3 style="margin:0">Faturamento por dia</h3><div class="seg" role="group" aria-label="Período">${[7,30].map(n=>`<button class="${S.period===n?'on':''}" data-a="period" data-n="${n}">${n} dias</button>`).join('')}</div></div>
@@ -747,7 +757,7 @@ function setView(v){
 function resetBook(keep){S.book={step:1,svcs:keep||[],barber:'any',date:null,time:null,bid:null,resched:null,done:null};const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
 function newBooking(o){
   const t=totals(o.svcs);
-  const x={id:uid('b'),date:o.date,time:o.time,dur:t.dur,bid:o.bid,names:t.names,svcIds:o.svcs.slice(),total:t.price,name:o.name.trim(),phone:o.phone,status:o.by==='admin'?'confirmado':'pendente',by:o.by};
+  const x={id:uid('b'),user_id:o.by==='admin'?null:authSession?.user?.id,date:o.date,time:o.time,dur:t.dur,bid:o.bid,names:t.names,svcIds:o.svcs.slice(),total:t.price,name:o.name.trim(),phone:o.phone,status:o.by==='admin'?'confirmado':'pendente',by:o.by};
   S.bookings.push(x);return x}
 function cancelOld(key){const u=S.bookings.find(y=>y.id===key);if(u){u.status='cancelado';u.remarcado=true}else S.ov[key]='cancelado'}
 function confirmBook(){
