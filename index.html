@@ -795,7 +795,8 @@ async function handleAuthSession(session){
  if(verified&&aal.data?.nextLevel==='aal2'&&aal.data?.currentLevel!=='aal2'){
   factorId=verified.id;const ch=await sb.auth.mfa.challenge({factorId,channel:'whatsapp'});
   if(!ch.error){challengeId=ch.data.id;S.auth.step='code';S.auth.code='';S.auth.err='';S.user=null;}
- }else{S.auth.step='phone';S.user=null;}
+ }else if(verified&&aal.data?.currentLevel==='aal2'&&p.data){S.user={name:p.data.full_name,email:session.user.email,phone:p.data.phone,gender:p.data.gender,birth_date:p.data.birth_date,avatar_seed:p.data.avatar_seed};}
+ else{S.auth.step='phone';S.user=null;}
  await loadCloudData();
 }
 async function boot(){
