@@ -142,7 +142,7 @@ insert into public.business_settings(id,settings) values ('main','{"name":"Barbe
 
 
 -- Availability-only view: clients can see occupied time ranges without names or phone numbers.
-create or replace view public.booking_busy_slots as
+create or replace view public.booking_busy_slots with (security_invoker = false) as
 select barber_id, appointment_date, start_minute, end_minute, status
 from public.appointments
 where status <> 'cancelado';
