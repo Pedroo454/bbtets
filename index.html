@@ -423,19 +423,18 @@ const NAMES=['Lucas M.','Pedro H.','Gabriel S.','Thiago R.','Mateus A.','Bruno C
 const CFG0={name:'Barbearia Julio Caetano',address:'',whatsapp:'',instagram:'',desc:'Corte, barba e atendimento com hora marcada em Poá, SP.',minCancelH:2,hours:'Seg a Sáb · 09h às 19h',confirmMsg:'Olá! Quero confirmar meu horário na Barbearia Julio Caetano.'};
 // OTPs são gerados e validados pelo Supabase Auth.
 
-const store={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-const KEY='jc-v3', sv0={};
+const sv0={};
 let SV=sv0.SV||JSON.parse(JSON.stringify(DEF_SV)), BB=sv0.BB||JSON.parse(JSON.stringify(DEF_BB));
 const S={view:'home',loading:true,cat:'Todos',
   book:{step:1,svcs:[],barber:'any',date:null,time:null,bid:null,resched:null,done:null},
-  cal:null,bookings:[],reviews:[],user:null,profile:null,
+  cal:null,bookings:[],busySlots:[],reviews:[],user:null,profile:null,
   auth:{step:'google',name:'',email:'',phone:'',code:'',err:'',gender:'',birth_date:''},next:'home',
   ov:{},sent:{},cfg:Object.assign({},CFG0),adminAuth:false,tab:'dash',period:7,adate:null,
   exp:[],cq:'',sheet:null,cc:null,delc:null};
 async function persist(){
  if(!sb||!authSession)return;
  const uid=authSession.user.id;
- const rows=S.bookings.filter(x=>x.user_id===uid||(S.adminAuth&&x.by==='admin')).map(x=>({id:x.id,user_id:x.user_id||null,barber_id:x.bid,service_ids:x.svcIds||[],service_names:x.names,appointment_date:x.date,start_minute:x.time,duration_minutes:x.dur,total_cents:x.total,client_name:x.name,phone:x.phone,status:x.status,source:x.by||'client'}));
+ const rows=S.bookings.filter(x=>S.adminAuth||x.user_id===uid).map(x=>({id:x.id,user_id:x.user_id||null,barber_id:x.bid,service_ids:x.svcIds||[],service_names:x.names,appointment_date:x.date,start_minute:x.time,duration_minutes:x.dur,total_cents:x.total,client_name:x.name,phone:x.phone,status:x.status,source:x.by||'client'}));
  for(const row of rows){const {error}=await sb.from('appointments').upsert(row);if(error)console.error('appointment save',error)}
  const reviews=S.reviews.filter(x=>!x.user_id||x.user_id===uid).map(x=>({id:x.id,booking_id:x.bk,user_id:uid,barber_id:x.bid,rating:x.stars,comment:x.text||'',client_name:x.name||S.user?.name||'Cliente'}));
  for(const row of reviews){const {error}=await sb.from('reviews').upsert(row);if(error)console.error('review save',error)}
@@ -511,7 +510,7 @@ function dayAppts(ds){
   S.bookings.filter(x=>x.date===ds).forEach(x=>all.push({key:x.id,bid:x.bid,ds,start:x.time,blocks:Math.ceil(x.dur/30),dur:x.dur,names:x.names,svcIds:x.svcIds||[],price:x.total,client:x.name,phone:x.phone,status:x.status,paid:false,user:true,by:x.by}));
   return all.sort((a,b)=>a.start-b.start||a.bid.localeCompare(b.bid));
 }
-const blocksBusy=(bid,ds)=>{const s=new Set();dayAppts(ds).filter(a=>a.bid===bid&&a.status!=='cancelado').forEach(a=>{const i=(a.start-OPEN.start)/30;for(let j=0;j<a.blocks;j++)s.add(i+j)});return s};
+const blocksBusy=(bid,ds)=>{const s=new Set();S.busySlots.filter(a=>a.barber_id===bid&&a.appointment_date===ds&&a.status!=='cancelado').forEach(a=>{for(let t=a.start_minute;t<a.end_minute;t+=30)s.add(Math.floor((t-OPEN.start)/30))});return s};
 const eligible=(svcs,pref)=>BB.filter(b=>b.on&&svcs.every(id=>b.svc.includes(id))&&(pref==='any'||b.id===pref));
 function slotsFor(ds,svcs,pref,dur,admin){
   const d=pdate(ds), out=[]; if(!svcs.length||!OPEN.days.includes(d.getDay())||ds<today())return out;
@@ -784,9 +783,29 @@ async function sendPhoneChallenge(){ const phone=toE164(S.auth.phone); if(!/^\\+
 async function verifyPhoneChallenge(){try{const r=await sb.auth.mfa.verify({factorId,challengeId,code:S.auth.code});if(r.error)throw r.error;const u=await sb.auth.getUser();if(u.error)throw u.error;const p=await sb.from('profiles').select('*').eq('id',u.data.user.id).maybeSingle();if(p.error)throw p.error;if(p.data){S.profile=p.data;S.user={name:p.data.full_name,email:u.data.user.email,phone:p.data.phone,gender:p.data.gender,birth_date:p.data.birth_date,avatar_seed:p.data.avatar_seed};await loadCloudData();finishAuthenticated();}else{S.auth.step='profile';S.auth.err='';render();}}catch(e){S.auth.err=e.message||'Código inválido ou expirado.';render();}}
 async function saveProfile(e){e.preventDefault();const gender=document.getElementById('profile-gender').value,birth=document.getElementById('profile-birth').value;if(!gender||!birth||birth>=today()){S.auth.err='Informe sexo e data de nascimento válidos.';render();return;}const user=authSession.user,seed=makeAvatarSeed(),name=user.user_metadata?.full_name||user.user_metadata?.name||user.email.split('@')[0]||'Cliente';const row={id:user.id,full_name:name,phone:S.auth.phone,gender,birth_date:birth,avatar_seed:seed};const r=await sb.from('profiles').upsert(row).select().single();if(r.error){S.auth.err=r.error.message;render();return;}S.profile=r.data;S.user={name:r.data.full_name,email:user.email,phone:r.data.phone,gender:r.data.gender,birth_date:r.data.birth_date,avatar_seed:r.data.avatar_seed};await loadCloudData();finishAuthenticated();}
 function finishAuthenticated(){toast('Conta verificada. Bem-vindo!');const next=S.next||'home';S.next='home';go(next==='entrar'?'home':next);}
-async function loadPublicData(){const [sv,bb,cfg]=await Promise.all([sb.from('services').select('*').eq('is_active',true).order('sort_order'),sb.from('barbers').select('*').eq('is_active',true).order('sort_order'),sb.from('business_settings').select('settings').eq('id','main').maybeSingle()]);if(sv.data)SV=sv.data.map(x=>({id:x.id,name:x.name,cat:x.category,price:x.price_cents,dur:x.duration_minutes,img:x.image_key,desc:x.description,pop:x.is_featured?1:0,on:x.is_active?1:0}));if(bb.data)BB=bb.data.map(x=>({id:x.id,name:x.name,role:x.role,img:x.image_key,bio:x.bio,off:x.days_off||[],svc:x.service_ids||[],on:x.is_active?1:0}));if(cfg.data?.settings)S.cfg=Object.assign({},CFG0,cfg.data.settings);bust()}
+async function loadPublicData(){const [sv,bb,cfg,busy]=await Promise.all([sb.from('services').select('*').eq('is_active',true).order('sort_order'),sb.from('barbers').select('*').eq('is_active',true).order('sort_order'),sb.from('business_settings').select('settings').eq('id','main').maybeSingle(),sb.from('booking_busy_slots').select('*')]);if(sv.data)SV=sv.data.map(x=>({id:x.id,name:x.name,cat:x.category,price:x.price_cents,dur:x.duration_minutes,img:x.image_key,desc:x.description,pop:x.is_featured?1:0,on:x.is_active?1:0}));if(bb.data)BB=bb.data.map(x=>({id:x.id,name:x.name,role:x.role,img:x.image_key,bio:x.bio,off:x.days_off||[],svc:x.service_ids||[],on:x.is_active?1:0}));if(cfg.data?.settings)S.cfg=Object.assign({},CFG0,cfg.data.settings);S.busySlots=busy.data||[];bust()}
 async function loadCloudData(){if(!sb||!authSession)return;await loadPublicData();const [sv,bb,ap,rv,cfg,role]=await Promise.all([sb.from('services').select('*').order('sort_order'),sb.from('barbers').select('*').order('sort_order'),sb.from('appointments').select('*'),sb.from('reviews').select('*').order('created_at'),sb.from('business_settings').select('settings').eq('id','main').maybeSingle(),sb.from('user_roles').select('role').eq('user_id',authSession.user.id).maybeSingle()]);if(sv.data)SV=sv.data.map(x=>({id:x.id,name:x.name,cat:x.category,price:x.price_cents,dur:x.duration_minutes,img:x.image_key,desc:x.description,pop:x.is_featured?1:0,on:x.is_active?1:0}));if(bb.data)BB=bb.data.map(x=>({id:x.id,name:x.name,role:x.role,img:x.image_key,bio:x.bio,off:x.days_off||[],svc:x.service_ids||[],on:x.is_active?1:0}));S.bookings=(ap.data||[]).map(x=>({id:x.id,user_id:x.user_id,date:x.appointment_date,time:x.start_minute,dur:x.duration_minutes,bid:x.barber_id,names:x.service_names,svcIds:x.service_ids||[],total:x.total_cents,name:x.client_name,phone:x.phone,status:x.status,by:x.source}));S.reviews=(rv.data||[]).map(x=>({id:x.id,bk:x.booking_id,bid:x.barber_id,stars:x.rating,text:x.comment,name:x.client_name,date:x.created_at?.slice(0,10)}));if(cfg.data?.settings)S.cfg=Object.assign({},CFG0,cfg.data.settings);ownerAccess=['owner','admin'].includes(role.data?.role);S.adminAuth=ownerAccess;bust();}
-async function boot(){if(!sb){S.loading=false;setView(location.hash.slice(1)||'home');return;}await loadPublicData();const r=await sb.auth.getSession();authSession=r.data.session;if(authSession){const p=await sb.from('profiles').select('*').eq('id',authSession.user.id).maybeSingle();if(p.data){S.profile=p.data;S.user={name:p.data.full_name,email:authSession.user.email,phone:p.data.phone,gender:p.data.gender,birth_date:p.data.birth_date,avatar_seed:p.data.avatar_seed};}await loadCloudData();}sb.auth.onAuthStateChange((_event,session)=>{authSession=session;if(session&&!S.user){S.auth.name=session.user.user_metadata?.full_name||session.user.email?.split('@')[0]||'Cliente';S.auth.email=session.user.email||'';S.auth.step='phone';if(location.hash!=='#entrar')location.hash='entrar';render();}else if(!session){S.user=null;S.profile=null;S.adminAuth=false;S.bookings=[];S.reviews=[];render();}});S.loading=false;setView(location.hash.slice(1)||'home');}
+async function handleAuthSession(session){
+ authSession=session;
+ if(!session){S.user=null;S.profile=null;S.adminAuth=false;S.bookings=[];S.reviews=[];return;}
+ const [p,factors,aal]=await Promise.all([sb.from('profiles').select('*').eq('id',session.user.id).maybeSingle(),sb.auth.mfa.listFactors(),sb.auth.mfa.getAuthenticatorAssuranceLevel()]);
+ const verified=(factors.data?.all||[]).find(x=>x.factor_type==='phone'&&x.status==='verified');
+ S.auth.name=p.data?.full_name||session.user.user_metadata?.full_name||session.user.email?.split('@')[0]||'Cliente';
+ S.auth.email=session.user.email||'';
+ if(p.data){S.profile=p.data;S.auth.phone=p.data.phone;}
+ if(verified&&aal.data?.nextLevel==='aal2'&&aal.data?.currentLevel!=='aal2'){
+  factorId=verified.id;const ch=await sb.auth.mfa.challenge({factorId,channel:'whatsapp'});
+  if(!ch.error){challengeId=ch.data.id;S.auth.step='code';S.auth.code='';S.auth.err='';S.user=null;}
+ }else if(p.data){S.user={name:p.data.full_name,email:session.user.email,phone:p.data.phone,gender:p.data.gender,birth_date:p.data.birth_date,avatar_seed:p.data.avatar_seed};}
+ else{S.auth.step='phone';S.user=null;}
+ await loadCloudData();
+}
+async function boot(){
+ if(!sb){S.loading=false;setView(location.hash.slice(1)||'home');return;}
+ const r=await sb.auth.getSession();await handleAuthSession(r.data.session);
+ sb.auth.onAuthStateChange(async(_event,session)=>{await handleAuthSession(session);if(session&&!S.user){if(location.hash!=='#entrar')location.hash='entrar';render()}else if(!session)render()});
+ S.loading=false;setView(location.hash.slice(1)||'home');
+}
 function closeSheetSilent(){if(S.sheet){S.sheet=null;S.delc=null;renderSheet()}}
 
 document.addEventListener('click',e=>{
@@ -845,6 +864,7 @@ document.addEventListener('click',e=>{
      else{let id=slug(sh.name),n=1;while(svcById(id))id=slug(sh.name)+'-'+(++n);SV.push({id,name:sh.name.trim(),cat:sh.cat,price:p,dur:du,desc:sh.desc.trim(),img:sh.img,on:sh.on?1:0,pop:sh.pop?1:0});BB.forEach(x=>{if(x.on)x.svc.push(id)})}
      bust();persist();closeSheet();toast('Serviço salvo. Já aparece no app.');render();break}
    case'del-svc':if(S.delc!==sh.id){S.delc=sh.id;renderSheet();break}
+     if(sb){const {error}=await sb.from('services').delete().eq('id',sh.id);if(error){toast(error.message);break}}
      SV=SV.filter(x=>x.id!==sh.id);BB.forEach(x=>x.svc=x.svc.filter(i=>i!==sh.id));S.book.svcs=S.book.svcs.filter(i=>i!==sh.id);bust();persist();closeSheet();toast('Serviço removido.');render();break;
    case'bb-new':openSheet({t:'bb',id:null,name:'',role:'',bio:'',img:null,svc:SV.filter(x=>x.on).map(x=>x.id),off:[],on:1,err:''});break;
    case'bb-edit':{const x=barById(d.id);openSheet({t:'bb',id:x.id,name:x.name,role:x.role,bio:x.bio||'',img:x.img,svc:x.svc.slice(),off:x.off.slice(),on:x.on,err:''});break}
@@ -854,6 +874,7 @@ document.addEventListener('click',e=>{
      else{let id=slug(sh.name),n=1;while(BB.find(x=>x.id===id))id=slug(sh.name)+'-'+(++n);BB.push({id,name:sh.name.trim(),role:sh.role.trim(),bio:sh.bio.trim(),img:sh.img,svc:sh.svc,off:sh.off,on:sh.on?1:0})}
      bust();persist();closeSheet();toast('Barbeiro salvo. Já aparece no app.');render();break;
    case'del-bb':if(S.delc!==sh.id){S.delc=sh.id;renderSheet();break}
+     if(sb){const {error}=await sb.from('barbers').delete().eq('id',sh.id);if(error){toast(error.message);break}}
      BB=BB.filter(x=>x.id!==sh.id);bust();persist();closeSheet();toast('Barbeiro removido.');render();break;
    case'sh-bsvc':{const i=sh.svc.indexOf(d.id);i>=0?sh.svc.splice(i,1):sh.svc.push(d.id);renderSheet();break}
    case'sh-off':{const n=+d.d,i=sh.off.indexOf(n);i>=0?sh.off.splice(i,1):sh.off.push(n);renderSheet();break}
