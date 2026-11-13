@@ -749,7 +749,7 @@ function go(v){if(location.hash!=='#'+v){location.hash=v;return}setView(v)}
 function setView(v){
   if(!['home','servicos','equipe','agendar','meus','admin','entrar'].includes(v))v='home';
   if(GATED.includes(v)&&!S.user){S.next=v;const pendingStep=authSession?'profile':'google';S.auth={step:pendingStep,name:authSession?.user?.user_metadata?.full_name||S.auth.name||'',email:authSession?.user?.email||S.auth.email||'',phone:S.auth.phone||'',code:S.auth.code||'',err:S.auth.err||'',gender:'',birth_date:''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
-  if(v==='entrar'&&S.user&&S.auth.step!=='profile'){v='home';if(location.hash!=='#home'){location.hash='home';return}}
+  if(v==='entrar'&&S.user){v='home';if(location.hash!=='#home'){location.hash='home';return}}
   if(v==='agendar'&&!S.cal){const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
   S.view=v;S.cc=null;render();window.scrollTo({top:0})}
 function resetBook(keep){S.book={step:1,svcs:keep||[],barber:'any',date:null,time:null,bid:null,resched:null,done:null};const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
