@@ -371,10 +371,9 @@ import { createAvatar } from 'https://cdn.jsdelivr.net/npm/@dicebear/core@9/+esm
 import { notionists } from 'https://cdn.jsdelivr.net/npm/@dicebear/collection@9/+esm';
 const SB_URL=window.JC_SUPABASE_URL||''; const SB_KEY=window.JC_SUPABASE_ANON_KEY||'';
 const sb=/^https:\/\/.+\.supabase\.co$/.test(SB_URL)&&SB_KEY.length>20?createClient(SB_URL,SB_KEY):null;
-let authSession=null, factorId=null, challengeId=null, ownerAccess=false;
+let authSession=null, ownerAccess=false;
 const avatarUrl=seed=>createAvatar(notionists,{seed:seed||'jc-user',radius:50,backgroundColor:['ffd400','f4d35e','e8e8e8']}).toDataUri();
 const makeAvatarSeed=()=>crypto.randomUUID?crypto.randomUUID():'jc-'+Date.now()+'-'+Math.random().toString(36).slice(2);
-const toE164=v=>{const d=String(v||'').replace(/\D/g,'');return d.startsWith('55')?'+'+d:'+55'+d;};
 
 /* ===== ícones ===== */
 const IC={
@@ -781,7 +780,7 @@ function go(v){if(location.hash!=='#'+v){location.hash=v;return}setView(v)}
 function setView(v){
   if(!['home','servicos','equipe','agendar','meus','admin','entrar'].includes(v))v='home';
   if(GATED.includes(v)&&!S.user){S.next=v;const pendingStep=authSession?'phone':'google';S.auth={step:pendingStep,name:authSession?.user?.user_metadata?.full_name||S.auth.name||'',email:authSession?.user?.email||S.auth.email||'',phone:S.auth.phone||'',err:S.auth.err||'',gender:S.auth.gender||'',birth_date:S.auth.birth_date||''};if(location.hash!=='#entrar'){location.hash='entrar';return}v='entrar'}
-  if(v==='entrar'&&S.user&&S.auth.step!=='code'&&S.auth.step!=='profile'){v='home';if(location.hash!=='#home'){location.hash='home';return}}
+  if(v==='entrar'&&S.user){v='home';if(location.hash!=='#home'){location.hash='home';return}}
   if(v==='agendar'&&!S.cal){const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
   S.view=v;S.cc=null;render();window.scrollTo({top:0})}
 function resetBook(keep){S.book={step:1,svcs:keep||[],barber:'any',date:null,time:null,bid:null,resched:null,done:null};const n=new Date();S.cal={y:n.getFullYear(),m:n.getMonth()}}
